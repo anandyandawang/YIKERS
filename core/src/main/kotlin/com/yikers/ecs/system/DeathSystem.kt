@@ -11,15 +11,15 @@ import com.yikers.ecs.component.Dead
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.resource.RunState
 
-// Per-climber death: a climber that falls below the rising camera or touches a
+// Per-climber death: a climber that falls below the rising kill-line or touches a
 // hazard is marked Dead. The run ends only once no living climber remains.
 class DeathSystem(
     private val runState: RunState = inject(),
 ) : IteratingSystem(family { all(Controlled, Physics).none(Dead) }) {
     override fun onTickEntity(entity: Entity) {
         val ballY = entity[Physics].body.position.y
-        val camBottom = runState.scrollY - GameConfig.HEIGHT / 2f
-        if (entity in runState.lethalHits || ballY < camBottom) {
+        val viewBottom = runState.scrollY - GameConfig.HEIGHT / 2f
+        if (entity in runState.lethalHits || ballY < viewBottom) {
             entity.configure { it += Dead() }
         }
     }

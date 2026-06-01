@@ -21,7 +21,7 @@ class BotView {
     // ground (solid everywhere), so there is no hole to fall back through.
     var supportHoleCenterX = 0f  // m
     var supportHoleWidth = 0f    // m; 0 => ground / no hole below
-    var distToCamBottom = 0f     // m, playerY - camBottom; small => near death
+    var distToKillLine = 0f      // m, playerY - killLine; small => near death
     var gravityPxS2 = 0f         // m/s^2, positive magnitude
     var boulderCount = 0
     val boulderX = FloatArray(GameConfig.NUM_PLATFORMS)   // m, center
@@ -53,8 +53,8 @@ class BotController : Controller {
         val jumpPx = ctx.jumpVelocity
         val jumpSafe = aligned && jumpIsSafe(ctx, v, jumpPx, v.gravityPxS2)
 
-        // 1. Camera pressure: punch through the hole now, accept boulder risk.
-        if (v.distToCamBottom < PANIC_DIST_PX) {
+        // 1. Kill-line pressure: punch through the hole now, accept boulder risk.
+        if (v.distToKillLine < PANIC_DIST_PX) {
             return Move(steer(dx, deadzone, ctx.speed), jump = aligned)
         }
 
@@ -192,7 +192,7 @@ class BotController : Controller {
         const val DANGER_BAND_PX = 0.90f    // vertical |dy| (m) a boulder can threaten on our lane
         const val DANGER_RADIUS_PX = GameConfig.BALL_RADIUS + GameConfig.BOULDER_RADIUS + 0.14f  // touch dist + slack (m)
         const val JUMP_BOULDER_PAD = 0.08f  // extra hole clearance (m) for the jump gate
-        // camera pressure
+        // kill-line pressure
         const val PANIC_DIST_PX = 1.30f     // floor this close (m) => prioritize climbing
 
         // ball-center x play-area (m)

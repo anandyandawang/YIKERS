@@ -23,7 +23,7 @@ class RenderSystem(
 
     override fun onTick() {
         // Render path: pull the domain kill-line into the cam each frame, then
-        // draw. CameraScrollSystem (runs earlier) already advanced scrollY.
+        // draw. ScrollSystem (runs earlier) already advanced scrollY.
         cam.position.y = runState.scrollY
         cam.update()
         shape.projectionMatrix = cam.combined

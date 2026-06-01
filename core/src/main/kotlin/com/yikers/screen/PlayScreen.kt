@@ -23,7 +23,7 @@ import com.yikers.ecs.buildArena
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.BoulderSystem
-import com.yikers.ecs.system.CameraScrollSystem
+import com.yikers.ecs.system.ScrollSystem
 import com.yikers.ecs.system.ControlSystem
 import com.yikers.ecs.system.DeathSystem
 import com.yikers.ecs.system.PhysicsStepSystem
@@ -90,7 +90,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
                 add(TransformSyncSystem())
                 add(BoulderSystem())
                 add(PlatformSystem())
-                add(CameraScrollSystem())
+                add(ScrollSystem())
                 add(DeathSystem())
                 add(RenderSystem())
             }

@@ -9,7 +9,7 @@ import kotlin.math.pow
 
 // Auto-scroll upward, accelerating over time once the first platform is cleared.
 // Advances the domain kill-line RunState.scrollY; the render cam follows it.
-class CameraScrollSystem(
+class ScrollSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
 ) : IntervalSystem() {
