@@ -7,7 +7,6 @@ import com.badlogic.gdx.physics.box2d.Body
 import com.badlogic.gdx.physics.box2d.BodyDef
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
-import com.yikers.P2M
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
 import com.yikers.control.Controller
@@ -41,8 +40,8 @@ fun buildPlatformHalf(pw: PhysicsWorld, xStart: Float, xEnd: Float, y: Float): B
     val h = GameConfig.PLATFORM_HEIGHT
     return pw.body {
         type = BodyDef.BodyType.StaticBody
-        position.set((xStart + w / 2f) * P2M, (y + h / 2f) * P2M)
-        box(width = w * P2M, height = h * P2M) {}
+        position.set(xStart + w / 2f, y + h / 2f)
+        box(width = w, height = h) {}
     }
 }
 
@@ -50,8 +49,8 @@ fun buildPlatformHalf(pw: PhysicsWorld, xStart: Float, xEnd: Float, y: Float): B
 fun buildArena(pw: PhysicsWorld): Arena {
     fun staticBox(cx: Float, cy: Float, w: Float, h: Float): Body = pw.body {
         type = BodyDef.BodyType.StaticBody
-        position.set(cx * P2M, cy * P2M)
-        box(width = w * P2M, height = h * P2M) { friction = 0f }
+        position.set(cx, cy)
+        box(width = w, height = h) { friction = 0f }
     }
     val ground = staticBox(GameConfig.WIDTH / 2f, GameConfig.GROUND_HEIGHT / 2f, GameConfig.WIDTH, GameConfig.GROUND_HEIGHT)
     val left = staticBox(GameConfig.WALL_THICKNESS / 2f, GameConfig.HEIGHT / 2f, GameConfig.WALL_THICKNESS, GameConfig.HEIGHT)
@@ -76,8 +75,8 @@ class EntityFactory(
         val r = GameConfig.BALL_RADIUS
         val ballBody = pw.body {
             type = BodyDef.BodyType.DynamicBody
-            position.set((x + r) * P2M, (y + r) * P2M)
-            circle(radius = r * P2M) {
+            position.set(x + r, y + r)
+            circle(radius = r) {
                 density = 500f
                 friction = 10f
                 userData = UD_BALL
@@ -89,8 +88,8 @@ class EntityFactory(
             gravityScale = 0f
             fixedRotation = true
             allowSleep = false
-            position.set(ballBody.position.x, ballBody.position.y - r * P2M)
-            box(width = GameConfig.FOOT_WIDTH * P2M, height = GameConfig.FOOT_HEIGHT * P2M) {
+            position.set(ballBody.position.x, ballBody.position.y - r)
+            box(width = GameConfig.FOOT_WIDTH, height = GameConfig.FOOT_HEIGHT) {
                 isSensor = true
                 userData = UD_FOOT
                 filter { groupIndex = group }
@@ -114,8 +113,8 @@ class EntityFactory(
         val r = GameConfig.BOULDER_RADIUS
         val body = pw.body {
             type = BodyDef.BodyType.DynamicBody
-            position.set((x + r) * P2M, (y + r) * P2M)
-            circle(radius = r * P2M) {
+            position.set(x + r, y + r)
+            circle(radius = r) {
                 // very high density => quasi-kinematic: player ball adds minimal
                 // momentum on collision, boulder keeps its course (matches YIKES).
                 density = 9999f

@@ -8,8 +8,8 @@ data class Move(val vx: Float, val jump: Boolean)
 // and bots may read it. World sensing the bot needs (holes, boulders, camera)
 // lives in its own BotView, not here, so the shared interface stays lean.
 class ControlContext {
-    var playerX = 0f          // px, ball center
-    var playerY = 0f          // px, ball center
+    var playerX = 0f          // m, ball center
+    var playerY = 0f          // m, ball center
     var grounded = false
     var speed = 0f            // m/s (horizontalSpeed)
     var jumpVelocity = 0f     // m/s

@@ -1,11 +1,9 @@
 package com.yikers.ecs.system
 
-import com.badlogic.gdx.graphics.OrthographicCamera
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import com.github.quillraven.fleks.World.Companion.inject
-import com.yikers.M2P
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
 import com.yikers.control.BotController
@@ -28,28 +26,27 @@ import kotlin.math.abs
 class ControlSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
-    private val cam: OrthographicCamera = inject(),
 ) : IteratingSystem(family { all(Controlled, Physics, FootSensor).none(Dead) }) {
     private val platforms = family { all(PlatformC) }
     private val boulders = family { all(BoulderC, Physics) }
     private val ctx = ControlContext()
-    // gravityScale is fixed for a run, so cache the px/s^2 magnitude once.
-    private val gravityPxS2 = abs(GameConfig.GRAVITY * cfg.gravityScale) * M2P
+    // gravityScale is fixed for a run, so cache the m/s^2 magnitude once.
+    private val gravityPxS2 = abs(GameConfig.GRAVITY * cfg.gravityScale)
 
     override fun onTickEntity(entity: Entity) {
         if (runState.dead) return
         val body = entity[Physics].body
         val grounded = entity[FootSensor].contacts > 0
 
-        ctx.playerX = body.position.x * M2P
-        ctx.playerY = body.position.y * M2P
+        ctx.playerX = body.position.x
+        ctx.playerY = body.position.y
         ctx.grounded = grounded
         ctx.speed = cfg.horizontalSpeed
         ctx.jumpVelocity = cfg.jumpVelocity
 
         val controller = entity[Controlled].controller
         if (controller is BotController) {
-            controller.view.playerVy = body.linearVelocity.y * M2P
+            controller.view.playerVy = body.linearVelocity.y
             fillView(controller.view, ctx.playerX, ctx.playerY)
         }
 
@@ -97,17 +94,17 @@ class ControlSystem(
         view.supportHoleCenterX = supCx
         view.supportHoleWidth = if (supY == -Float.MAX_VALUE) 0f else supW
 
-        view.distToCamBottom = py - (cam.position.y - GameConfig.HEIGHT / 2f)
+        view.distToKillLine = py - (runState.scrollY - GameConfig.HEIGHT / 2f)
         view.gravityPxS2 = gravityPxS2
 
         var n = 0
         boulders.forEach { e ->
             if (n >= view.boulderX.size) return@forEach
             val b = e[Physics].body
-            view.boulderX[n] = b.position.x * M2P
-            view.boulderY[n] = b.position.y * M2P
-            view.boulderVx[n] = b.linearVelocity.x * M2P
-            view.boulderVy[n] = b.linearVelocity.y * M2P
+            view.boulderX[n] = b.position.x
+            view.boulderY[n] = b.position.y
+            view.boulderVx[n] = b.linearVelocity.x
+            view.boulderVy[n] = b.linearVelocity.y
             n++
         }
         view.boulderCount = n

@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.OrthographicCamera
+import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.FitViewport
 import com.github.quillraven.fleks.World
@@ -22,10 +23,9 @@ import com.yikers.ecs.buildArena
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.BoulderSystem
-import com.yikers.ecs.system.CameraScrollSystem
+import com.yikers.ecs.system.ScrollSystem
 import com.yikers.ecs.system.ControlSystem
 import com.yikers.ecs.system.DeathSystem
-import com.yikers.ecs.system.HudSystem
 import com.yikers.ecs.system.PhysicsStepSystem
 import com.yikers.ecs.system.PlatformSystem
 import com.yikers.ecs.system.RenderSystem
@@ -41,6 +41,12 @@ import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 class PlayScreen(private val game: YikersGame) : KtxScreen {
     private val camera = OrthographicCamera()
     private val viewport = FitViewport(GameConfig.WIDTH, GameConfig.HEIGHT, camera)
+
+    // HUD draws in its own pixel space (480x800) — the world cam is meters now,
+    // so the font would render ~100x too big through it. Stays screen-fixed.
+    private val hudCamera = OrthographicCamera()
+    private val hudViewport = FitViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX, hudCamera)
+    private val layout = GlyphLayout()
 
     private lateinit var physicsWorld: PhysicsWorld
     private lateinit var world: World
@@ -61,6 +67,8 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
 
         camera.position.set(GameConfig.WIDTH / 2f, GameConfig.HEIGHT / 2f, 0f)
         camera.update()
+        hudCamera.position.set(GameConfig.WIDTH_PX / 2f, GameConfig.HEIGHT_PX / 2f, 0f)
+        hudCamera.update()
 
         physicsWorld = createWorld(gravity = vec2(0f, GameConfig.GRAVITY * cfg.gravityScale))
         val arena = buildArena(physicsWorld)
@@ -73,9 +81,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
                 add(runState)
                 add(arena)
                 add(refs)
-                add(game.batch)
                 add(game.shape)
-                add(game.font)
             }
             systems {
                 add(ControlSystem())
@@ -84,10 +90,9 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
                 add(TransformSyncSystem())
                 add(BoulderSystem())
                 add(PlatformSystem())
-                add(CameraScrollSystem())
+                add(ScrollSystem())
                 add(DeathSystem())
                 add(RenderSystem())
-                add(HudSystem())
             }
         }
 
@@ -97,7 +102,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
             factory.spawnPlatform(GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS)
         }
         for (i in 1..GameConfig.NUM_PLATFORMS) {
-            factory.spawnBoulder(GameConfig.WIDTH / 2f - GameConfig.BOULDER_RADIUS, -300f - i * 60f)
+            factory.spawnBoulder(GameConfig.WIDTH / 2f - GameConfig.BOULDER_RADIUS, -3.0f - i * 0.6f)
         }
 
         physicsWorld.setContactListener(PlayContactListener(world, runState))
@@ -135,8 +140,38 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
         viewport.apply()
         world.update(delta)
+        drawHud()
 
         if (runState.dead) handleGameOver(delta)
+    }
+
+    // Run-level HUD overlay: score readout + game-over panel, drawn in pixel
+    // space after the world. Was HudSystem — UI isn't entity data, so it lives on
+    // the screen. Inherits the world viewport's glViewport rect (same 0.6 aspect),
+    // so no hudViewport.apply() needed; matches the old HudSystem draw exactly.
+    private fun drawHud() {
+        val batch = game.batch
+        val font = game.font
+        batch.projectionMatrix = hudCamera.combined
+        batch.begin()
+        font.color = Color.WHITE
+        font.draw(batch, "SCORE ${runState.score}", 12f, GameConfig.HEIGHT_PX - 12f)
+
+        if (runState.dead) {
+            val midY = GameConfig.HEIGHT_PX / 2f
+            font.color = Color.CORAL
+            centeredHud("GAME OVER", midY + 80f)
+            font.color = Color.WHITE
+            centeredHud("SCORE ${runState.score}", midY + 20f)
+            centeredHud("HIGH ${runState.highScore}", midY - 20f)
+            centeredHud("press space", midY - 90f)
+        }
+        batch.end()
+    }
+
+    private fun centeredHud(text: String, y: Float) {
+        layout.setText(game.font, text)
+        game.font.draw(game.batch, text, GameConfig.WIDTH_PX / 2f - layout.width / 2f, y)
     }
 
     // Hands-free run returns to the menu (which auto-starts again) after a beat;
@@ -151,8 +186,9 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     }
 
     override fun resize(width: Int, height: Int) {
-        // PlayScreen drives camera.y for scrolling — don't recenter.
+        // PlayScreen drives camera.y for scrolling — don't recenter the world cam.
         viewport.update(width, height, false)
+        hudViewport.update(width, height, true)
     }
 
     override fun hide() = teardown()
