@@ -19,6 +19,23 @@ it and you die. Score = platforms climbed.
 ./gradlew lwjgl3:run
 ```
 
+## Bots / roster
+
+A run holds X human climbers + Y bot climbers, each a distinct color. Counts come
+from env vars (or `-Dyikers.*` system properties); default is one human, so
+normal play is unchanged:
+
+```bash
+YIKERS_HUMANS=0 YIKERS_BOTS=1 ./gradlew lwjgl3:run   # one bot plays itself
+YIKERS_HUMANS=1 YIKERS_BOTS=1 ./gradlew lwjgl3:run   # you + a bot
+YIKERS_SEED=42 ./gradlew lwjgl3:run                  # reproducible layout
+```
+
+With 0 humans the menu auto-starts and the run auto-restarts on death (hands-off
+attract mode) — which is what lets a bot run be screen-recorded. Bots steer
+toward the next gap and hop; boulder-dodging is a TODO. Each climber dies on its
+own; the run ends once all are dead.
+
 ## Build
 
 ```bash

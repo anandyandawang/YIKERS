@@ -9,6 +9,7 @@ import com.badlogic.gdx.utils.viewport.FitViewport
 import com.yikers.YikersGame
 import com.yikers.config.GameConfig
 import com.yikers.config.Prefs
+import com.yikers.control.Roster
 import ktx.app.KtxScreen
 
 // Title + high score. Any key/tap starts a run.
@@ -16,11 +17,18 @@ class MenuScreen(private val game: YikersGame) : KtxScreen {
     private val viewport = FitViewport(GameConfig.WIDTH, GameConfig.HEIGHT)
     private val layout = GlyphLayout()
 
+    private var elapsed = 0f
+
+    override fun show() {
+        elapsed = 0f
+    }
+
     override fun render(delta: Float) {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) ||
+        elapsed += delta
+        val pressed = Gdx.input.isKeyJustPressed(Input.Keys.SPACE) ||
             Gdx.input.isKeyJustPressed(Input.Keys.ENTER) ||
             Gdx.input.justTouched()
-        ) {
+        if (pressed || (Roster.handsFree && elapsed >= AUTO_START_DELAY)) {
             game.setScreen<PlayScreen>()
             return
         }
@@ -44,5 +52,9 @@ class MenuScreen(private val game: YikersGame) : KtxScreen {
 
     override fun resize(width: Int, height: Int) {
         viewport.update(width, height, true)
+    }
+
+    companion object {
+        private const val AUTO_START_DELAY = 0.6f
     }
 }
