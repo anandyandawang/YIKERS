@@ -1,6 +1,5 @@
 package com.yikers.control
 
-import com.yikers.M2P
 import com.yikers.config.GameConfig
 import kotlin.math.abs
 import kotlin.math.sign
@@ -12,23 +11,23 @@ import kotlin.math.sqrt
 // abstraction until there are several bot percepts, noisy-vision difficulty,
 // replay, or RL training. Boulder arrays are sized once to the pool and reused.
 class BotView {
-    var playerVy = 0f            // px/sec, signed (up = +); the bot's own climb/fall
-    var targetHoleCenterX = 0f   // px, center of the hole in the next platform up
-    var targetHoleWidth = 0f     // px; 0 => no platform above (just hop)
-    var targetPlatformY = 0f     // px, Y of that platform
-    var nextHoleCenterX = 0f     // px, hole one platform further up (lookahead)
-    var nextHoleWidth = 0f       // px; 0 => unknown
+    var playerVy = 0f            // m/s, signed (up = +); the bot's own climb/fall
+    var targetHoleCenterX = 0f   // m, center of the hole in the next platform up
+    var targetHoleWidth = 0f     // m; 0 => no platform above (just hop)
+    var targetPlatformY = 0f     // m, Y of that platform
+    var nextHoleCenterX = 0f     // m, hole one platform further up (lookahead)
+    var nextHoleWidth = 0f       // m; 0 => unknown
     // The slab just below the ball — the surface it must land on. 0 width => the
     // ground (solid everywhere), so there is no hole to fall back through.
-    var supportHoleCenterX = 0f  // px
-    var supportHoleWidth = 0f    // px; 0 => ground / no hole below
-    var distToCamBottom = 0f     // px, playerY - camBottom; small => near death
-    var gravityPxS2 = 0f         // px/s^2, positive magnitude
+    var supportHoleCenterX = 0f  // m
+    var supportHoleWidth = 0f    // m; 0 => ground / no hole below
+    var distToCamBottom = 0f     // m, playerY - camBottom; small => near death
+    var gravityPxS2 = 0f         // m/s^2, positive magnitude
     var boulderCount = 0
-    val boulderX = FloatArray(GameConfig.NUM_PLATFORMS)   // px, center
-    val boulderY = FloatArray(GameConfig.NUM_PLATFORMS)   // px, center
-    val boulderVx = FloatArray(GameConfig.NUM_PLATFORMS)  // px/sec, signed
-    val boulderVy = FloatArray(GameConfig.NUM_PLATFORMS)  // px/sec, signed
+    val boulderX = FloatArray(GameConfig.NUM_PLATFORMS)   // m, center
+    val boulderY = FloatArray(GameConfig.NUM_PLATFORMS)   // m, center
+    val boulderVx = FloatArray(GameConfig.NUM_PLATFORMS)  // m/s, signed
+    val boulderVy = FloatArray(GameConfig.NUM_PLATFORMS)  // m/s, signed
 }
 
 // Autopilot. Climbs by hopping up through each platform's gap and landing on the
@@ -50,8 +49,8 @@ class BotController : Controller {
         // the apex steer onto solid so we land instead of dropping back through.
         if (!ctx.grounded) return Move(airborneSteer(ctx, v, deadzone), jump = false)
 
-        // Grounded. Convert m/s feel numbers to px-space for the jump arc math.
-        val jumpPx = ctx.jumpVelocity * M2P
+        // Grounded. Jump arc math runs in meters (ctx/view all meters now).
+        val jumpPx = ctx.jumpVelocity
         val jumpSafe = aligned && jumpIsSafe(ctx, v, jumpPx, v.gravityPxS2)
 
         // 1. Camera pressure: punch through the hole now, accept boulder risk.
@@ -127,7 +126,7 @@ class BotController : Controller {
             val bvx = v.boulderVx[i]
             if (rx * bvx >= 0f) continue                  // not moving toward us
             if (abs(rx) >= DANGER_RADIUS_PX * 3f) continue
-            val ttc = abs(rx) / maxOf(1f, abs(bvx))
+            val ttc = abs(rx) / maxOf(0.01f, abs(bvx))
             if (ttc <= REACT_HORIZON_S && ttc < bestTtc) {
                 bestTtc = ttc
                 bestVx = bvx
@@ -185,21 +184,21 @@ class BotController : Controller {
 
     private companion object {
         // alignment
-        const val DEADZONE_FRAC = 0.5f      // * BALL_RADIUS = 12px: ignore tiny offsets
+        const val DEADZONE_FRAC = 0.5f      // * BALL_RADIUS = 0.12m: ignore tiny offsets
         const val ALIGN_FRAC = 0.35f        // hole-width fraction that counts as lined up
-        const val LANDING_PAD = 6f          // extra px onto solid when picking a landing spot
+        const val LANDING_PAD = 0.06f       // extra m onto solid when picking a landing spot
         // boulder dodging
         const val REACT_HORIZON_S = 0.9f    // only react to boulders arriving within this
-        const val DANGER_BAND_PX = 90f      // vertical |dy| a boulder can threaten on our lane
-        const val DANGER_RADIUS_PX = GameConfig.BALL_RADIUS + GameConfig.BOULDER_RADIUS + 14f  // touch dist + slack
-        const val JUMP_BOULDER_PAD = 8f     // extra hole clearance for the jump gate
+        const val DANGER_BAND_PX = 0.90f    // vertical |dy| (m) a boulder can threaten on our lane
+        const val DANGER_RADIUS_PX = GameConfig.BALL_RADIUS + GameConfig.BOULDER_RADIUS + 0.14f  // touch dist + slack (m)
+        const val JUMP_BOULDER_PAD = 0.08f  // extra hole clearance (m) for the jump gate
         // camera pressure
-        const val PANIC_DIST_PX = 130f      // floor this close => prioritize climbing
+        const val PANIC_DIST_PX = 1.30f     // floor this close (m) => prioritize climbing
 
-        // ball-center x play-area (px)
+        // ball-center x play-area (m)
         const val LEFT_BOUND_PX = GameConfig.WALL_THICKNESS + GameConfig.BALL_RADIUS
         const val RIGHT_BOUND_PX = GameConfig.WIDTH - GameConfig.WALL_THICKNESS - GameConfig.BALL_RADIUS
-        // boulder-center wall-bounce bounds (px); must match BoulderSystem
+        // boulder-center wall-bounce bounds (m); must match BoulderSystem
         const val B_LEFT_BOUND_PX = GameConfig.WALL_THICKNESS + GameConfig.BOULDER_RADIUS
         const val B_RIGHT_BOUND_PX = GameConfig.WIDTH - GameConfig.WALL_THICKNESS - GameConfig.BOULDER_RADIUS
     }

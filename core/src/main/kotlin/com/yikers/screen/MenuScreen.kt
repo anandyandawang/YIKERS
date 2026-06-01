@@ -14,7 +14,7 @@ import ktx.app.KtxScreen
 
 // Title + high score. Any key/tap starts a run.
 class MenuScreen(private val game: YikersGame) : KtxScreen {
-    private val viewport = FitViewport(GameConfig.WIDTH, GameConfig.HEIGHT)
+    private val viewport = FitViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX)  // pixel space (world is meters)
     private val layout = GlyphLayout()
 
     private var elapsed = 0f
@@ -38,16 +38,16 @@ class MenuScreen(private val game: YikersGame) : KtxScreen {
         game.batch.projectionMatrix = viewport.camera.combined
         game.batch.begin()
         game.font.color = Color.CORAL
-        centered(GameConfig.TITLE, GameConfig.HEIGHT * 0.66f)
+        centered(GameConfig.TITLE, GameConfig.HEIGHT_PX * 0.66f)
         game.font.color = Color.WHITE
-        centered("press space to climb", GameConfig.HEIGHT * 0.50f)
-        centered("HIGH ${Prefs.highScore}", GameConfig.HEIGHT * 0.40f)
+        centered("press space to climb", GameConfig.HEIGHT_PX * 0.50f)
+        centered("HIGH ${Prefs.highScore}", GameConfig.HEIGHT_PX * 0.40f)
         game.batch.end()
     }
 
     private fun centered(text: String, y: Float) {
         layout.setText(game.font, text)
-        game.font.draw(game.batch, text, (GameConfig.WIDTH - layout.width) / 2f, y)
+        game.font.draw(game.batch, text, (GameConfig.WIDTH_PX - layout.width) / 2f, y)
     }
 
     override fun resize(width: Int, height: Int) {
