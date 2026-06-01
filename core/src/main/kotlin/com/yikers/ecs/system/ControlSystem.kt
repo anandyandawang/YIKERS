@@ -1,5 +1,6 @@
 package com.yikers.ecs.system
 
+import com.badlogic.gdx.graphics.OrthographicCamera
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
@@ -7,23 +8,33 @@ import com.github.quillraven.fleks.World.Companion.inject
 import com.yikers.M2P
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
+import com.yikers.control.BotController
+import com.yikers.control.BotView
 import com.yikers.control.ControlContext
+import com.yikers.ecs.component.BoulderC
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.Dead
 import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.resource.RunState
+import kotlin.math.abs
 
 // Per-climber control: each entity's Controller decides its move this frame.
 // Humans read input, bots read world state. Original feel preserved: held arrow
 // = horizontal velocity (keeps x-momentum on jump), jump gated on foot contact.
+// ctx carries only the climber's own state; a bot's world percept goes into its
+// BotView, so the shared ControlContext stays human-clean.
 class ControlSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
+    private val cam: OrthographicCamera = inject(),
 ) : IteratingSystem(family { all(Controlled, Physics, FootSensor).none(Dead) }) {
     private val platforms = family { all(PlatformC) }
+    private val boulders = family { all(BoulderC, Physics) }
     private val ctx = ControlContext()
+    // gravityScale is fixed for a run, so cache the px/s^2 magnitude once.
+    private val gravityPxS2 = abs(GameConfig.GRAVITY * cfg.gravityScale) * M2P
 
     override fun onTickEntity(entity: Entity) {
         if (runState.dead) return
@@ -35,30 +46,70 @@ class ControlSystem(
         ctx.grounded = grounded
         ctx.speed = cfg.horizontalSpeed
         ctx.jumpVelocity = cfg.jumpVelocity
-        fillTarget(ctx)
 
-        val move = entity[Controlled].controller.decide(ctx)
+        val controller = entity[Controlled].controller
+        if (controller is BotController) {
+            controller.view.playerVy = body.linearVelocity.y * M2P
+            fillView(controller.view, ctx.playerX, ctx.playerY)
+        }
+
+        val move = controller.decide(ctx)
         body.setLinearVelocity(move.vx, body.linearVelocity.y)
         if (move.jump && grounded) {
             body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
         }
     }
 
-    // The gap in the lowest platform above the climber -> ctx target fields.
-    // Fallback: screen center, width 0 (so a bot with no platform above hops).
-    private fun fillTarget(ctx: ControlContext) {
-        var bestY = Float.MAX_VALUE
-        var bestCenter = GameConfig.WIDTH / 2f
-        var bestWidth = 0f
+    // Project the world into the bot's percept: the two lowest holes above it,
+    // the slab just below it (its landing surface), distance to the killing
+    // floor, gravity, and a snapshot of every boulder. Fallbacks keep the old
+    // behavior: no platform above -> width 0 (bot hops); none below -> ground.
+    private fun fillView(view: BotView, px: Float, py: Float) {
+        var firstY = Float.MAX_VALUE
+        var firstCx = GameConfig.WIDTH / 2f
+        var firstW = 0f
+        var secondY = Float.MAX_VALUE
+        var secondCx = GameConfig.WIDTH / 2f
+        var secondW = 0f
+        var supY = -Float.MAX_VALUE   // highest platform at/below the ball
+        var supCx = GameConfig.WIDTH / 2f
+        var supW = 0f
         platforms.forEach { e ->
             val p = e[PlatformC]
-            if (p.y > ctx.playerY && p.y < bestY) {
-                bestY = p.y
-                bestCenter = p.holeX + p.holeWidth / 2f
-                bestWidth = p.holeWidth
+            val cx = p.holeX + p.holeWidth / 2f
+            if (p.y > py) {
+                if (p.y < firstY) {
+                    secondY = firstY; secondCx = firstCx; secondW = firstW
+                    firstY = p.y; firstCx = cx; firstW = p.holeWidth
+                } else if (p.y < secondY) {
+                    secondY = p.y; secondCx = cx; secondW = p.holeWidth
+                }
+            } else if (p.y > supY) {
+                supY = p.y; supCx = cx; supW = p.holeWidth
             }
         }
-        ctx.targetHoleCenterX = bestCenter
-        ctx.targetHoleWidth = bestWidth
+        view.targetHoleCenterX = firstCx
+        view.targetHoleWidth = firstW
+        view.targetPlatformY =
+            if (firstY == Float.MAX_VALUE) py + GameConfig.PLATFORM_INTERVALS else firstY
+        view.nextHoleCenterX = secondCx
+        view.nextHoleWidth = if (secondY == Float.MAX_VALUE) 0f else secondW
+        view.supportHoleCenterX = supCx
+        view.supportHoleWidth = if (supY == -Float.MAX_VALUE) 0f else supW
+
+        view.distToCamBottom = py - (cam.position.y - GameConfig.HEIGHT / 2f)
+        view.gravityPxS2 = gravityPxS2
+
+        var n = 0
+        boulders.forEach { e ->
+            if (n >= view.boulderX.size) return@forEach
+            val b = e[Physics].body
+            view.boulderX[n] = b.position.x * M2P
+            view.boulderY[n] = b.position.y * M2P
+            view.boulderVx[n] = b.linearVelocity.x * M2P
+            view.boulderVy[n] = b.linearVelocity.y * M2P
+            n++
+        }
+        view.boulderCount = n
     }
 }
