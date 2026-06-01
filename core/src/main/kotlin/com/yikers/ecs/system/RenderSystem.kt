@@ -10,20 +10,26 @@ import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.component.RenderShape
 import com.yikers.ecs.component.ShapeKind
 import com.yikers.ecs.component.Transform
+import com.yikers.ecs.resource.RunState
 
 // Asset-free draw pass via ShapeRenderer. Separate from the HUD's SpriteBatch.
 class RenderSystem(
     private val shape: ShapeRenderer = inject(),
     private val cam: OrthographicCamera = inject(),
+    private val runState: RunState = inject(),
 ) : IntervalSystem() {
     private val renderables = world.family { all(Transform, RenderShape) }
     private val platforms = world.family { all(PlatformC) }
 
     override fun onTick() {
+        // Render path: pull the domain kill-line into the cam each frame, then
+        // draw. CameraScrollSystem (runs earlier) already advanced scrollY.
+        cam.position.y = runState.scrollY
+        cam.update()
         shape.projectionMatrix = cam.combined
         shape.begin(ShapeRenderer.ShapeType.Filled)
 
-        val viewBottom = cam.position.y - GameConfig.HEIGHT / 2f
+        val viewBottom = runState.scrollY - GameConfig.HEIGHT / 2f
 
         shape.color = Color.DARK_GRAY
         shape.rect(0f, 0f, GameConfig.WIDTH, GameConfig.GROUND_HEIGHT)
