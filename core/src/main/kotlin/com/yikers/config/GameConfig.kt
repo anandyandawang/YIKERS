@@ -22,5 +22,5 @@ object GameConfig {
     const val PLATFORM_EDGE_MIN = 20f  // keep both halves wider than this
     const val WALL_THICKNESS = 16f
     const val GROUND_HEIGHT = 40f
-    const val BOULDER_RADIUS = 20f
+    const val BOULDER_RADIUS = 36f    // 1.5x ball, matches YIKES Ø75/Ø50 ratio
 }
