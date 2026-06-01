@@ -14,7 +14,6 @@ import com.yikers.control.Controller
 import com.yikers.ecs.component.BoulderC
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.FootSensor
-import com.yikers.ecs.component.Lethal
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.component.Player
@@ -117,7 +116,9 @@ class EntityFactory(
             type = BodyDef.BodyType.DynamicBody
             position.set((x + r) * P2M, (y + r) * P2M)
             circle(radius = r * P2M) {
-                density = 1000f
+                // very high density => quasi-kinematic: player ball adds minimal
+                // momentum on collision, boulder keeps its course (matches YIKES).
+                density = 9999f
                 friction = 0f
             }
         }
@@ -126,7 +127,8 @@ class EntityFactory(
             it += Transform(position = Vector2(x + r, y + r), size = Vector2(r * 2f, r * 2f))
             it += RenderShape(ShapeKind.CIRCLE, Color.LIGHT_GRAY)
             it += BoulderC()
-            it += Lethal()
+            // not Lethal: boulder is a physical obstacle that knocks the player
+            // around on contact, like YIKES. Death stays fall-below-camera only.
         }
         body.userData = entity
         refs.boulders += entity
