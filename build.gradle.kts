@@ -1,6 +1,6 @@
 // Root build. No code here. Subprojects pull shared repos + kotlin.
 plugins {
-    kotlin("jvm") version "2.1.0" apply false
+    kotlin("jvm") version "2.3.21" apply false
 }
 
 allprojects {

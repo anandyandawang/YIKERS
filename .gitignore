@@ -2,6 +2,9 @@
 .gradle/
 build/
 
+# Kotlin compiler daemon
+.kotlin/
+
 # IDE
 .idea/
 *.iml
