@@ -12,7 +12,8 @@ object Lwjgl3Launcher {
             YikersGame(),
             Lwjgl3ApplicationConfiguration().apply {
                 setTitle("YIKERS")
-                setWindowedMode(800, 480)
+                // Portrait. Climber go up.
+                setWindowedMode(480, 800)
                 useVsync(true)
                 setForegroundFPS(60)
             },
