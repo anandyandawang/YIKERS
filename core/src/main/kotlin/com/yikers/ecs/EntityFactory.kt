@@ -10,7 +10,9 @@ import com.github.quillraven.fleks.World
 import com.yikers.P2M
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
+import com.yikers.control.Controller
 import com.yikers.ecs.component.BoulderC
+import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.Lethal
 import com.yikers.ecs.component.Physics
@@ -65,7 +67,13 @@ class EntityFactory(
     private val refs: Refs,
 ) {
     // player ball: dynamic circle + separate dynamic foot sensor (no gravity).
-    fun spawnPlayer(x: Float, y: Float): Entity {
+    fun spawnPlayer(
+        x: Float,
+        y: Float,
+        controller: Controller,
+        color: Color = Color.CORAL,
+        group: Short = PLAYER_GROUP,
+    ): Entity {
         val r = GameConfig.BALL_RADIUS
         val ballBody = pw.body {
             type = BodyDef.BodyType.DynamicBody
@@ -74,7 +82,7 @@ class EntityFactory(
                 density = 500f
                 friction = 10f
                 userData = UD_BALL
-                filter { groupIndex = PLAYER_GROUP }
+                filter { groupIndex = group }
             }
         }
         val footBody = pw.body {
@@ -85,19 +93,19 @@ class EntityFactory(
             box(width = GameConfig.FOOT_WIDTH * P2M, height = GameConfig.FOOT_HEIGHT * P2M) {
                 isSensor = true
                 userData = UD_FOOT
-                filter { groupIndex = PLAYER_GROUP }
+                filter { groupIndex = group }
             }
         }
         val entity = world.entity {
             it += Physics(ballBody)
             it += FootSensor(footBody)
             it += Transform(position = Vector2(x + r, y + r), size = Vector2(r * 2f, r * 2f))
-            it += RenderShape(ShapeKind.CIRCLE, Color.CORAL)
+            it += RenderShape(ShapeKind.CIRCLE, color)
+            it += Controlled(controller)
             it += Player()
         }
         ballBody.userData = entity
         footBody.userData = entity
-        refs.player = entity
         return entity
     }
 
