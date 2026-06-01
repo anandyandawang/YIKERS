@@ -16,6 +16,6 @@ data class RunConfig(
     var boulderSpawnChance: Float = 1f,   // 0..1 on platform recycle
     var boulderSpeedMin: Float = 4f,      // YIKES 20 * 0.2
     var boulderSpeedMax: Float = 6f,      // YIKES 30 * 0.2
-    var scrollAccelFactor: Float = 240f,  // px/sec scroll scale (YIKES used 4/frame @60fps)
+    var scrollAccelFactor: Float = 240f,  // scroll scale; px->m fold lives in GameConfig.SCALING_FACTOR
     var scoreScale: Int = 1,
 )

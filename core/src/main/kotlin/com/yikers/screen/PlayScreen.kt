@@ -42,6 +42,11 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     private val camera = OrthographicCamera()
     private val viewport = FitViewport(GameConfig.WIDTH, GameConfig.HEIGHT, camera)
 
+    // HUD draws in its own pixel space (480x800) — the world cam is meters now,
+    // so the font would render ~100x too big through it. Stays screen-fixed.
+    private val hudCamera = OrthographicCamera()
+    private val hudViewport = FitViewport(480f, 800f, hudCamera)
+
     private lateinit var physicsWorld: PhysicsWorld
     private lateinit var world: World
     private lateinit var runState: RunState
@@ -61,6 +66,8 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
 
         camera.position.set(GameConfig.WIDTH / 2f, GameConfig.HEIGHT / 2f, 0f)
         camera.update()
+        hudCamera.position.set(240f, 400f, 0f)
+        hudCamera.update()
 
         physicsWorld = createWorld(gravity = vec2(0f, GameConfig.GRAVITY * cfg.gravityScale))
         val arena = buildArena(physicsWorld)
@@ -69,6 +76,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
             injectables {
                 add(physicsWorld)
                 add(camera)
+                add("hud", hudCamera)
                 add(cfg)
                 add(runState)
                 add(arena)
@@ -97,7 +105,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
             factory.spawnPlatform(GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS)
         }
         for (i in 1..GameConfig.NUM_PLATFORMS) {
-            factory.spawnBoulder(GameConfig.WIDTH / 2f - GameConfig.BOULDER_RADIUS, -300f - i * 60f)
+            factory.spawnBoulder(GameConfig.WIDTH / 2f - GameConfig.BOULDER_RADIUS, -3.0f - i * 0.6f)
         }
 
         physicsWorld.setContactListener(PlayContactListener(world, runState))
@@ -151,8 +159,9 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     }
 
     override fun resize(width: Int, height: Int) {
-        // PlayScreen drives camera.y for scrolling — don't recenter.
+        // PlayScreen drives camera.y for scrolling — don't recenter the world cam.
         viewport.update(width, height, false)
+        hudViewport.update(width, height, true)
     }
 
     override fun hide() = teardown()

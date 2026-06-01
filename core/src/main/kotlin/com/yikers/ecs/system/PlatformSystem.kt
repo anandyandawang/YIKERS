@@ -6,8 +6,6 @@ import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import com.github.quillraven.fleks.World.Companion.inject
-import com.yikers.M2P
-import com.yikers.P2M
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
 import com.yikers.ecs.buildPlatformHalf
@@ -31,7 +29,7 @@ class PlatformSystem(
         if (runState.dead) return
         val p = entity[PlatformC]
         val player = refs.player ?: return
-        val ballY = player[Physics].body.position.y * M2P
+        val ballY = player[Physics].body.position.y
 
         if (!p.cleared && ballY > p.y + GameConfig.PLATFORM_HEIGHT) {
             p.cleared = true
@@ -78,8 +76,8 @@ class PlatformSystem(
         val body = be[Physics].body
         val r = GameConfig.BOULDER_RADIUS
         val x = MathUtils.random(GameConfig.WALL_THICKNESS + r, GameConfig.WIDTH - GameConfig.WALL_THICKNESS - r)
-        val y = p.y + GameConfig.PLATFORM_HEIGHT + r + 4f
-        body.setTransform(x * P2M, y * P2M, 0f)
+        val y = p.y + GameConfig.PLATFORM_HEIGHT + r + 0.04f
+        body.setTransform(x, y, 0f)
         val speed = MathUtils.random(cfg.boulderSpeedMin, cfg.boulderSpeedMax) *
             (if (MathUtils.randomBoolean()) 1f else -1f)
         body.setLinearVelocity(speed, 0f)
