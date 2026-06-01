@@ -1,6 +1,5 @@
 package com.yikers.ecs.system
 
-import com.badlogic.gdx.graphics.OrthographicCamera
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
@@ -27,7 +26,6 @@ import kotlin.math.abs
 class ControlSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
-    private val cam: OrthographicCamera = inject(),
 ) : IteratingSystem(family { all(Controlled, Physics, FootSensor).none(Dead) }) {
     private val platforms = family { all(PlatformC) }
     private val boulders = family { all(BoulderC, Physics) }
@@ -96,7 +94,7 @@ class ControlSystem(
         view.supportHoleCenterX = supCx
         view.supportHoleWidth = if (supY == -Float.MAX_VALUE) 0f else supW
 
-        view.distToCamBottom = py - (cam.position.y - GameConfig.HEIGHT / 2f)
+        view.distToKillLine = py - (runState.scrollY - GameConfig.HEIGHT / 2f)
         view.gravityPxS2 = gravityPxS2
 
         var n = 0

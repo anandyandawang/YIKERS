@@ -1,6 +1,5 @@
 package com.yikers.ecs.system
 
-import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.math.MathUtils
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
@@ -16,11 +15,10 @@ import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
-// Score on platform clear; recycle platforms that scrolled below the camera and
+// Score on platform clear; recycle platforms that scrolled below the kill-line and
 // randomly drop a boulder on them.
 class PlatformSystem(
     private val pw: PhysicsWorld = inject(),
-    private val cam: OrthographicCamera = inject(),
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
     private val refs: Refs = inject(),
@@ -43,8 +41,8 @@ class PlatformSystem(
             runState.startCamera = true
         }
 
-        val camBottom = cam.position.y - GameConfig.HEIGHT / 2f
-        if (p.y + GameConfig.PLATFORM_HEIGHT < camBottom) {
+        val viewBottom = runState.scrollY - GameConfig.HEIGHT / 2f
+        if (p.y + GameConfig.PLATFORM_HEIGHT < viewBottom) {
             recycle(entity, p, p.y + GameConfig.PLATFORM_INTERVALS * GameConfig.NUM_PLATFORMS)
             if (MathUtils.random() < cfg.boulderSpawnChance) dropBoulder(p)
         }
