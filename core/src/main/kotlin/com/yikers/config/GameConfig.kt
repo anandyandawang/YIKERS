@@ -4,6 +4,9 @@ package com.yikers.config
 object GameConfig {
     const val WIDTH = 4.8f
     const val HEIGHT = 8.0f
+    const val PPM = 100f                 // px per meter; HUD + window design scale
+    const val WIDTH_PX = WIDTH * PPM     // 480 px design width
+    const val HEIGHT_PX = HEIGHT * PPM   // 800 px design height
     const val TITLE = "YIKERS"
 
     const val PLATFORM_INTERVALS = 1.9f

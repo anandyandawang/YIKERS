@@ -45,7 +45,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     // HUD draws in its own pixel space (480x800) — the world cam is meters now,
     // so the font would render ~100x too big through it. Stays screen-fixed.
     private val hudCamera = OrthographicCamera()
-    private val hudViewport = FitViewport(480f, 800f, hudCamera)
+    private val hudViewport = FitViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX, hudCamera)
 
     private lateinit var physicsWorld: PhysicsWorld
     private lateinit var world: World
@@ -66,7 +66,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
 
         camera.position.set(GameConfig.WIDTH / 2f, GameConfig.HEIGHT / 2f, 0f)
         camera.update()
-        hudCamera.position.set(240f, 400f, 0f)
+        hudCamera.position.set(GameConfig.WIDTH_PX / 2f, GameConfig.HEIGHT_PX / 2f, 0f)
         hudCamera.update()
 
         physicsWorld = createWorld(gravity = vec2(0f, GameConfig.GRAVITY * cfg.gravityScale))

@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.github.quillraven.fleks.IntervalSystem
 import com.github.quillraven.fleks.World.Companion.inject
+import com.yikers.config.GameConfig
 import com.yikers.ecs.resource.RunState
 
 // Score readout + game-over overlay. SpriteBatch pass, drawn after shapes.
@@ -24,21 +25,22 @@ class HudSystem(
         batch.projectionMatrix = cam.combined
         batch.begin()
         font.color = Color.WHITE
-        font.draw(batch, "SCORE ${runState.score}", 12f, 800f - 12f)
+        font.draw(batch, "SCORE ${runState.score}", 12f, GameConfig.HEIGHT_PX - 12f)
 
         if (runState.dead) {
+            val midY = GameConfig.HEIGHT_PX / 2f
             font.color = Color.CORAL
-            centered("GAME OVER", 400f + 80f)
+            centered("GAME OVER", midY + 80f)
             font.color = Color.WHITE
-            centered("SCORE ${runState.score}", 400f + 20f)
-            centered("HIGH ${runState.highScore}", 400f - 20f)
-            centered("press space", 400f - 90f)
+            centered("SCORE ${runState.score}", midY + 20f)
+            centered("HIGH ${runState.highScore}", midY - 20f)
+            centered("press space", midY - 90f)
         }
         batch.end()
     }
 
     private fun centered(text: String, y: Float) {
         layout.setText(font, text)
-        font.draw(batch, text, 240f - layout.width / 2f, y)
+        font.draw(batch, text, GameConfig.WIDTH_PX / 2f - layout.width / 2f, y)
     }
 }
