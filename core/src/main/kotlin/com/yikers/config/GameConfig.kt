@@ -9,7 +9,7 @@ object GameConfig {
     const val PLATFORM_INTERVALS = 190f
     const val NUM_PLATFORMS = 6
 
-    const val GRAVITY = -500f
+    const val GRAVITY = -20f           // realtime gravity; YIKES -500 ran at 0.2x sim (-500 * 0.2^2)
     const val SCALING_FACTOR = 0.17f   // ball-derived scroll scale (from YIKES)
 
     // entity sizes (px) — replace YIKES texture-derived sizes. TUNE for feel.

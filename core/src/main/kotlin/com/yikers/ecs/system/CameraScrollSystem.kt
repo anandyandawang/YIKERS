@@ -17,9 +17,10 @@ class CameraScrollSystem(
     override fun onTick() {
         if (runState.dead || !runState.startCamera) return
         runState.totalTime = minOf(runState.totalTime + deltaTime, 60f)
-        val step = cfg.scrollAccelFactor * GameConfig.SCALING_FACTOR *
+        // px/second scroll speed; * dt keeps scroll framerate-independent.
+        val stepPerSecond = cfg.scrollAccelFactor * GameConfig.SCALING_FACTOR *
             (1.02.pow(runState.totalTime.toDouble()).toFloat() + 2f)
-        cam.position.y += step
+        cam.position.y += stepPerSecond * deltaTime
         cam.update()
     }
 }

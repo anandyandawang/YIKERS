@@ -8,7 +8,7 @@ import com.yikers.VELOCITY_ITERS
 import com.yikers.ecs.resource.RunState
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
-// Fixed-timestep Box2D stepping decoupled from render dt (clamp avoids spiral).
+// Fixed-timestep Box2D stepping decoupled from render dt.
 class PhysicsStepSystem(
     private val pw: PhysicsWorld = inject(),
     private val runState: RunState = inject(),
@@ -17,7 +17,7 @@ class PhysicsStepSystem(
 
     override fun onTick() {
         if (runState.dead) return
-        acc += minOf(deltaTime, 0.25f)
+        acc += deltaTime
         while (acc >= TIME_STEP) {
             pw.step(TIME_STEP, VELOCITY_ITERS, POSITION_ITERS)
             acc -= TIME_STEP
