@@ -89,6 +89,7 @@ class EntityFactory(
             type = BodyDef.BodyType.DynamicBody
             gravityScale = 0f
             fixedRotation = true
+            allowSleep = false
             position.set(ballBody.position.x, ballBody.position.y - r * P2M)
             box(width = GameConfig.FOOT_WIDTH * P2M, height = GameConfig.FOOT_HEIGHT * P2M) {
                 isSensor = true
