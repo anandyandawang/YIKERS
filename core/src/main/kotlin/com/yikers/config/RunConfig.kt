@@ -9,7 +9,7 @@ data class RunConfig(
     // rescale symmetry: velocities x0.2, accelerations (gravity) x0.2^2 = 0.04.
     // Any new velocity/accel must use this same scale.
     var jumpVelocity: Float = 10f,        // YIKES 50 * 0.2
-    var horizontalSpeed: Float = 4f,      // YIKES 20 * 0.2 (old tilt feel)
+    var horizontalSpeed: Float = 4f,      // YIKES 20 * 0.2; key speed + tilt accelX scale
     var gravityScale: Float = 1f,
     var doubleJumpEnabled: Boolean = false,
     var maxAirJumps: Int = 0,

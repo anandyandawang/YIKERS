@@ -11,7 +11,7 @@ class ControlContext {
     var playerX = 0f          // m, ball center
     var playerY = 0f          // m, ball center
     var grounded = false
-    var speed = 0f            // m/s (horizontalSpeed)
+    var speed = 0f            // m/s (horizontalSpeed); also the tilt accelX scale
     var jumpVelocity = 0f     // m/s
 }
 

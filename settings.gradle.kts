@@ -1,3 +1,3 @@
 rootProject.name = "YIKERS"
 
-include("core", "lwjgl3")
+include("core", "lwjgl3", "ios")
