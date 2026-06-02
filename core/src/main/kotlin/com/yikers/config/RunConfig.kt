@@ -10,6 +10,7 @@ data class RunConfig(
     // Any new velocity/accel must use this same scale.
     var jumpVelocity: Float = 10f,        // YIKES 50 * 0.2
     var horizontalSpeed: Float = 4f,      // YIKES 20 * 0.2 (old tilt feel)
+    var tiltScale: Float = 4f,            // YIKES -20 * 0.2; raw accelX -> vx on tilt devices
     var gravityScale: Float = 1f,
     var doubleJumpEnabled: Boolean = false,
     var maxAirJumps: Int = 0,

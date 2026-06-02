@@ -42,6 +42,7 @@ class ControlSystem(
         ctx.playerY = body.position.y
         ctx.grounded = grounded
         ctx.speed = cfg.horizontalSpeed
+        ctx.tiltScale = cfg.tiltScale
         ctx.jumpVelocity = cfg.jumpVelocity
 
         val controller = entity[Controlled].controller
