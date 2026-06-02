@@ -18,8 +18,9 @@ import com.yikers.ecs.resource.RunState
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
 // Score on the primary climber's platform clears. Bridge a hole shut only once
-// EVERY living climber has cleared it, so none is sealed underneath. Recycle
-// platforms that scrolled below the kill-line and randomly drop a boulder on them.
+// EVERY living climber has landed on it (foot contact), so none is sealed
+// underneath and no resting ball is ejected. Recycle platforms that scrolled
+// below the kill-line and randomly drop a boulder on them.
 class PlatformSystem(
     private val pw: PhysicsWorld = inject(),
     private val cfg: RunConfig = inject(),
@@ -28,17 +29,9 @@ class PlatformSystem(
 ) : IteratingSystem(family { all(PlatformC) }) {
     // Every living climber (mirror of ControlSystem's percept set).
     private val livePlayers = family { all(Player, Physics).none(Dead) }
-    private var lowestLiveY = Float.MAX_VALUE
 
     override fun onTick() {
         if (runState.dead) return
-        // Lowest living climber drives hole-closing: a platform stays open until
-        // even the last one has fully cleared it (ball bottom above the top).
-        lowestLiveY = Float.MAX_VALUE
-        livePlayers.forEach { e ->
-            val y = e[Physics].body.position.y
-            if (y < lowestLiveY) lowestLiveY = y
-        }
         super.onTick()
     }
 
@@ -61,20 +54,13 @@ class PlatformSystem(
             }
         }
 
-        // Close only once EVERY living climber has cleared it (matches YIKES'
-        // bridge), so none is sealed below: snap the physics solid once, then ease
-        // the rendered gap shut from both ends.
-        // Gate on the ball BOTTOM (center - radius), not the center: the ball is as
-        // tall as the slab, so at center-crosses-top the ball still overlaps the
-        // platform band while sitting in the hole. Snapping the full-width slab
-        // solid there spawns it inside the ball -> Box2D ejects the ball upward
-        // (the "teleport up" on every clear). Bottom-above-top => no overlap => no
-        // eject.
-        if (!p.bridged && lowestLiveY != Float.MAX_VALUE &&
-            lowestLiveY - GameConfig.BALL_RADIUS > p.y + GameConfig.PLATFORM_HEIGHT
-        ) {
-            bridge(entity, p)
-        }
+        // Close only once EVERY living climber has actually landed on it (foot
+        // contact), matching YIKES' bridge. Gating on foot contact (not position)
+        // means the climber is RESTING on the slab when it seals, so the rebuilt
+        // halves snap solid at the ball's own rest height -> no overlap, no upward
+        // eject (the old "teleport up" on every clear). Also keeps a hole open for
+        // any living climber that hasn't landed yet, so none is sealed below.
+        if (!p.bridged && allLiveClimbersLanded(p)) bridge(entity, p)
         if (p.bridged) easeGap(p)
 
         val viewBottom = runState.scrollY // kill-line = view bottom edge
@@ -82,6 +68,19 @@ class PlatformSystem(
             recycle(entity, p, p.y + GameConfig.PLATFORM_INTERVALS * GameConfig.NUM_PLATFORMS)
             if (MathUtils.random() < cfg.boulderSpawnChance) dropBoulder(p)
         }
+    }
+
+    // True once every living climber has landed on this slab. Empty live set ->
+    // false (nothing to seal for). Linear scan: a handful of climbers, contains()
+    // on a List uses Entity.equals (no hashCode -> RoboVM-safe).
+    private fun allLiveClimbersLanded(p: PlatformC): Boolean {
+        var any = false
+        var allLanded = true
+        livePlayers.forEach { e ->
+            any = true
+            if (e !in p.touchedBy) allLanded = false
+        }
+        return any && allLanded
     }
 
     // One-shot: collapse both halves to the hole's centre so the platform reads
@@ -113,6 +112,7 @@ class PlatformSystem(
         p.y = newY
         p.cleared = false
         p.bridged = false
+        p.touchedBy.clear() // fresh slab higher up: nobody has landed on it yet
         p.holeWidth = MathUtils.random(GameConfig.PLATFORM_HOLE_MIN, GameConfig.PLATFORM_HOLE_MAX)
         p.holeX = MathUtils.random(
             GameConfig.PLATFORM_EDGE_MIN,
