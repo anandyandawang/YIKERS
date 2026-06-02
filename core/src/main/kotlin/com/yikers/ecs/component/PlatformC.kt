@@ -12,6 +12,7 @@ data class PlatformC(
     var holeX: Float,
     var holeWidth: Float,
     var cleared: Boolean = false,
+    var bridged: Boolean = false, // physics gap already closed (one-shot, after clear)
 ) : Component<PlatformC> {
     override fun type() = PlatformC
     companion object : ComponentType<PlatformC>()

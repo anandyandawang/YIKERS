@@ -15,8 +15,9 @@ import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
-// Score on platform clear; recycle platforms that scrolled below the kill-line and
-// randomly drop a boulder on them.
+// Score on platform clear, then bridge its hole shut so the player can't fall
+// back through; recycle platforms that scrolled below the kill-line and randomly
+// drop a boulder on them.
 class PlatformSystem(
     private val pw: PhysicsWorld = inject(),
     private val cfg: RunConfig = inject(),
@@ -41,6 +42,10 @@ class PlatformSystem(
             runState.startCamera = true
         }
 
+        // Cleared platforms close their hole (matches YIKES): snap the physics
+        // solid once, then ease the rendered gap shut.
+        if (p.cleared) closeHole(entity, p)
+
         val viewBottom = runState.scrollY - GameConfig.HEIGHT / 2f
         if (p.y + GameConfig.PLATFORM_HEIGHT < viewBottom) {
             recycle(entity, p, p.y + GameConfig.PLATFORM_INTERVALS * GameConfig.NUM_PLATFORMS)
@@ -48,9 +53,26 @@ class PlatformSystem(
         }
     }
 
+    // One-shot extends the right half over the gap so the platform is solid; the
+    // rendered holeWidth then eases to 0 for the "sliding shut" look.
+    private fun closeHole(entity: Entity, p: PlatformC) {
+        if (!p.bridged) {
+            pw.destroyBody(p.rightBody)
+            val right = buildPlatformHalf(pw, p.holeX, GameConfig.WIDTH, p.y)
+            right.userData = entity
+            p.rightBody = right
+            p.bridged = true
+        }
+        if (p.holeWidth > 0f) {
+            p.holeWidth -= p.holeWidth * (GameConfig.PLATFORM_CLOSE_SPEED * deltaTime).coerceAtMost(1f)
+            if (p.holeWidth < 0.02f) p.holeWidth = 0f
+        }
+    }
+
     private fun recycle(entity: Entity, p: PlatformC, newY: Float) {
         p.y = newY
         p.cleared = false
+        p.bridged = false
         p.holeWidth = MathUtils.random(GameConfig.PLATFORM_HOLE_MIN, GameConfig.PLATFORM_HOLE_MAX)
         p.holeX = MathUtils.random(
             GameConfig.PLATFORM_EDGE_MIN,
