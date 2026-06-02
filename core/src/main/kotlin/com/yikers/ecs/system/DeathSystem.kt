@@ -19,7 +19,7 @@ class DeathSystem(
     override fun onTickEntity(entity: Entity) {
         val ballY = entity[Physics].body.position.y
         val viewBottom = runState.scrollY - GameConfig.HEIGHT / 2f
-        if (entity.id in runState.lethalHits || ballY < viewBottom) {
+        if (entity in runState.lethalHits || ballY < viewBottom) {
             entity.configure { it += Dead() }
         }
     }
