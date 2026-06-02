@@ -145,8 +145,8 @@ class HeadlessRunIntegrationTest {
     // Multiplayer rule ("after last player"): a platform must NOT bridge while a
     // living climber still hasn't landed on it (else it'd be sealed under solid
     // floor / eject a ball straddling the hole); it closes once the last one has
-    // foot contact. touchedBy is poked directly here; the real contact-listener
-    // path that fills it is covered by footContactBridgesAfterLanding.
+    // foot contact. Both climbers sit above the slab here so only the landed flag
+    // gates; the real contact-listener path is covered by footContactBridgesAfterLanding.
     @Test
     fun holeStaysOpenUntilLastClimberLands() {
         val cfg = RunConfig()
@@ -161,17 +161,19 @@ class HeadlessRunIntegrationTest {
             systems { add(PlatformSystem()) }
         }
 
+        val platY = 1.0f
+        val platTop = platY + GameConfig.PLATFORM_HEIGHT
+
         fun climber(): Entity = world.entity {
             val b = pw.body {
                 type = BodyDef.BodyType.DynamicBody
-                position.set(GameConfig.WIDTH / 2f, 1f)
+                position.set(GameConfig.WIDTH / 2f, platTop + 1f) // above the slab
                 circle(radius = GameConfig.BALL_RADIUS) {}
             }
             it += Physics(b)
             it += Player()
         }
 
-        val platY = 1.0f
         val left = buildPlatformHalf(pw, 0f, 2.0f, platY)
         val right = buildPlatformHalf(pw, 3.0f, GameConfig.WIDTH, platY)
         val plat = world.entity { it += PlatformC(left, right, platY, 2.0f, 1.0f) }
@@ -195,6 +197,70 @@ class HeadlessRunIntegrationTest {
             world.update(DT)
             assertTrue(plat[PlatformC].bridged) {
                 "hole must bridge once the last climber has landed"
+            }
+        }
+
+        world.dispose()
+        pw.dispose()
+    }
+
+    // Regression for the fell-back trap: a climber that landed on the slab (so it
+    // is in touchedBy) but then dropped BACK below it must re-block the bridge,
+    // even when another climber is the last to arrive. Else the slab would seal
+    // over the climber beneath it.
+    @Test
+    fun holeStaysOpenIfALandedClimberFellBackBelow() {
+        val cfg = RunConfig()
+        val runState = RunState().apply { highScore = Int.MAX_VALUE }
+        val refs = Refs()
+        val pw = createWorld(gravity = vec2(0f, 0f)) // no gravity: positions set by hand
+
+        val world = configureWorld {
+            injectables {
+                add(pw); add(cfg); add(runState); add(refs)
+            }
+            systems { add(PlatformSystem()) }
+        }
+
+        val platY = 1.0f
+        val platTop = platY + GameConfig.PLATFORM_HEIGHT
+
+        fun climber(y: Float): Entity = world.entity {
+            val b = pw.body {
+                type = BodyDef.BodyType.DynamicBody
+                position.set(GameConfig.WIDTH / 2f, y)
+                circle(radius = GameConfig.BALL_RADIUS) {}
+            }
+            it += Physics(b)
+            it += Player()
+        }
+
+        val left = buildPlatformHalf(pw, 0f, 2.0f, platY)
+        val right = buildPlatformHalf(pw, 3.0f, GameConfig.WIDTH, platY)
+        val plat = world.entity { it += PlatformC(left, right, platY, 2.0f, 1.0f) }
+        left.userData = plat
+        right.userData = plat
+
+        // A landed earlier then fell back to the previous platform (below the top).
+        val fallen = climber(platY - 0.4f)
+        // B is the last climber, now resting above the slab.
+        val last = climber(platTop + 1f)
+        refs.player = last
+
+        with(world) {
+            // Both have landed at some point -> both in touchedBy.
+            plat[PlatformC].touchedBy += fallen
+            plat[PlatformC].touchedBy += last
+            world.update(DT)
+            assertFalse(plat[PlatformC].bridged) {
+                "must not seal over a climber that fell back below it"
+            }
+
+            // The fallen climber climbs back above -> now safe to seal.
+            fallen[Physics].body.setTransform(GameConfig.WIDTH / 2f, platTop + 1f, 0f)
+            world.update(DT)
+            assertTrue(plat[PlatformC].bridged) {
+                "bridges once the fallen climber is back above the slab"
             }
         }
 
