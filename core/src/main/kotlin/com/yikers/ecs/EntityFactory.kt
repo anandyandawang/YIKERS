@@ -35,9 +35,12 @@ const val UD_FOOT = "foot"
 // groupIndex shared by ball + its foot so they never collide with each other.
 private const val PLAYER_GROUP: Short = -1
 
-// Build a static slab spanning [xStart, xEnd] at height y. Used by spawn + recycle.
+// Build a static slab spanning [xStart, xEnd] at height y. Used by spawn,
+// recycle, and bridge. Width is exact (no floor): PLATFORM_EDGE_MIN keeps every
+// half >= 0.20m, and a coerced-up width would overrun the rendered slab into the
+// visible hole -> player hits an invisible wall.
 fun buildPlatformHalf(pw: PhysicsWorld, xStart: Float, xEnd: Float, y: Float): Body {
-    val w = (xEnd - xStart).coerceAtLeast(1f)
+    val w = xEnd - xStart
     val h = GameConfig.PLATFORM_HEIGHT
     return pw.body {
         type = BodyDef.BodyType.StaticBody
