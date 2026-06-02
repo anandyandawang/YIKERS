@@ -1,5 +1,6 @@
 package com.yikers.ecs.resource
 
+import com.github.quillraven.fleks.Entity
 import com.yikers.config.GameConfig
 
 // Live run state shared across systems + screen.
@@ -17,8 +18,5 @@ class RunState {
     var highScore = 0
 
     // Climbers whose ball touched a hazard this run; DeathSystem kills them.
-    // Keyed by Entity.id (Int) not Entity: RoboVM/iOS rt has no static
-    // Integer.hashCode(int), so Entity.hashCode() crashes a HashSet<Entity>.
-    // Boxing Int uses the instance Integer.hashCode(), which exists.
-    val lethalHits = HashSet<Int>()
+    val lethalHits = HashSet<Entity>()
 }
