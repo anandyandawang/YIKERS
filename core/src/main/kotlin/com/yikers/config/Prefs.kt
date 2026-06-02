@@ -11,7 +11,11 @@ object Prefs {
     @Suppress("unused") private const val KEY_UNLOCKED = "unlockedCharacters"
     @Suppress("unused") private const val KEY_CHECKPOINTS = "checkpoints"
 
-    private val prefs get() = Gdx.app.getPreferences(FILE)
+    // Cache one Preferences instance. iOS getPreferences() builds a NEW
+    // IOSPreferences each call (desktop caches in a map), so a per-access getter
+    // split putInteger + flush across two instances -> write lost on iOS. One
+    // shared instance keeps put + flush together.
+    private val prefs by lazy { Gdx.app.getPreferences(FILE) }
 
     var highScore: Int
         get() = prefs.getInteger(KEY_HIGHSCORE, 0)
