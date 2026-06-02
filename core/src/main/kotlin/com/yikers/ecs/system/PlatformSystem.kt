@@ -45,7 +45,7 @@ class PlatformSystem(
     override fun onTickEntity(entity: Entity) {
         val p = entity[PlatformC]
 
-        // Scoring + camera-start track the primary climber only.
+        // Scoring tracks the primary climber only.
         val primary = refs.player
         if (primary != null && !p.cleared) {
             val primaryY = primary[Physics].body.position.y
@@ -58,7 +58,6 @@ class PlatformSystem(
                 }
                 runState.score += gained * cfg.scoreScale
                 runState.lastPlatformY = p.y
-                runState.startCamera = true
             }
         }
 
