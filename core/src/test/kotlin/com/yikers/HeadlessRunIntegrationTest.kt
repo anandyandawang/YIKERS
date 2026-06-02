@@ -199,6 +199,67 @@ class HeadlessRunIntegrationTest {
         pw.dispose()
     }
 
+    // Regression: the ball is as tall as a platform slab, so when its CENTER first
+    // crosses the platform top its BOTTOM still overlaps the slab band (it's in the
+    // hole). Bridging there would snap a full-width slab inside the ball and Box2D
+    // would eject it upward ("teleport up" on every clear). Bridge must wait until
+    // the ball BOTTOM clears the top.
+    @Test
+    fun holeDoesNotBridgeWhileBallStraddlesTheTop() {
+        val cfg = RunConfig()
+        val runState = RunState().apply { highScore = Int.MAX_VALUE }
+        val refs = Refs()
+        val pw = createWorld(gravity = vec2(0f, 0f)) // no gravity: bodies placed by hand
+
+        val world = configureWorld {
+            injectables {
+                add(pw); add(cfg); add(runState); add(refs)
+            }
+            systems { add(PlatformSystem()) }
+        }
+
+        fun climber(y: Float): Entity = world.entity {
+            val b = pw.body {
+                type = BodyDef.BodyType.DynamicBody
+                position.set(GameConfig.WIDTH / 2f, y)
+                circle(radius = GameConfig.BALL_RADIUS) {}
+            }
+            it += Physics(b)
+            it += Player()
+        }
+
+        val platY = 1.0f
+        val platTop = platY + GameConfig.PLATFORM_HEIGHT
+        val left = buildPlatformHalf(pw, 0f, 2.0f, platY)
+        val right = buildPlatformHalf(pw, 3.0f, GameConfig.WIDTH, platY)
+        val plat = world.entity { it += PlatformC(left, right, platY, 2.0f, 1.0f) }
+        left.userData = plat
+        right.userData = plat
+
+        // Center above the top, bottom still below it (ball straddles the slab band).
+        val ball = climber(platTop + GameConfig.BALL_RADIUS * 0.5f)
+        refs.player = ball
+
+        with(world) {
+            world.update(DT)
+            assertFalse(plat[PlatformC].bridged) {
+                "must not bridge while the ball bottom still overlaps the slab"
+            }
+
+            // Ball bottom now clears the top -> safe to bridge, no eject.
+            ball[Physics].body.setTransform(
+                GameConfig.WIDTH / 2f, platTop + GameConfig.BALL_RADIUS + 0.1f, 0f,
+            )
+            world.update(DT)
+            assertTrue(plat[PlatformC].bridged) {
+                "must bridge once the ball bottom is above the top"
+            }
+        }
+
+        world.dispose()
+        pw.dispose()
+    }
+
     companion object {
         private const val SEED = 42L
         private const val DT = 1f / 60f

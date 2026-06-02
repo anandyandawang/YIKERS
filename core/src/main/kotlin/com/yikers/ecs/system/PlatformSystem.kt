@@ -33,7 +33,7 @@ class PlatformSystem(
     override fun onTick() {
         if (runState.dead) return
         // Lowest living climber drives hole-closing: a platform stays open until
-        // even the last one is above it.
+        // even the last one has fully cleared it (ball bottom above the top).
         lowestLiveY = Float.MAX_VALUE
         livePlayers.forEach { e ->
             val y = e[Physics].body.position.y
@@ -64,8 +64,14 @@ class PlatformSystem(
         // Close only once EVERY living climber has cleared it (matches YIKES'
         // bridge), so none is sealed below: snap the physics solid once, then ease
         // the rendered gap shut from both ends.
+        // Gate on the ball BOTTOM (center - radius), not the center: the ball is as
+        // tall as the slab, so at center-crosses-top the ball still overlaps the
+        // platform band while sitting in the hole. Snapping the full-width slab
+        // solid there spawns it inside the ball -> Box2D ejects the ball upward
+        // (the "teleport up" on every clear). Bottom-above-top => no overlap => no
+        // eject.
         if (!p.bridged && lowestLiveY != Float.MAX_VALUE &&
-            lowestLiveY > p.y + GameConfig.PLATFORM_HEIGHT
+            lowestLiveY - GameConfig.BALL_RADIUS > p.y + GameConfig.PLATFORM_HEIGHT
         ) {
             bridge(entity, p)
         }
