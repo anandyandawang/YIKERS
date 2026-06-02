@@ -36,6 +36,13 @@
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
+	<!-- Diagnostic: expose Documents in the Files app so the on-device crash
+	     dump (yikers-crash.txt) is readable without a Mac. Remove with the
+	     crash-dump code once the iOS crash is fixed. -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>UIStatusBarHidden</key>
 	<true/>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
