@@ -79,11 +79,18 @@ class PlatformSystem(
         }
     }
 
-    // One-shot: extend the right half over the gap so the platform reads solid.
+    // One-shot: collapse both halves to the hole's centre so the platform reads
+    // solid. The meeting point is where the rendered both-ends tween lands too, so
+    // physics and render end up consistent — physics just gets there instantly.
     private fun bridge(entity: Entity, p: PlatformC) {
+        val center = p.holeX + p.holeWidth / 2f
+        pw.destroyBody(p.leftBody)
         pw.destroyBody(p.rightBody)
-        val right = buildPlatformHalf(pw, p.holeX, GameConfig.WIDTH, p.y)
+        val left = buildPlatformHalf(pw, 0f, center, p.y)
+        val right = buildPlatformHalf(pw, center, GameConfig.WIDTH, p.y)
+        left.userData = entity
         right.userData = entity
+        p.leftBody = left
         p.rightBody = right
         p.bridged = true
     }
