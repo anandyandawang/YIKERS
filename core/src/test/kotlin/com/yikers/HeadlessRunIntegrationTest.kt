@@ -10,9 +10,14 @@ import com.github.quillraven.fleks.configureWorld
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
 import com.yikers.control.BotController
+import com.badlogic.gdx.physics.box2d.BodyDef
+import com.github.quillraven.fleks.Entity
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.buildArena
+import com.yikers.ecs.buildPlatformHalf
 import com.yikers.ecs.component.Physics
+import com.yikers.ecs.component.PlatformC
+import com.yikers.ecs.component.Player
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.BoulderSystem
@@ -24,6 +29,8 @@ import com.yikers.ecs.system.ScrollSystem
 import com.yikers.ecs.system.TransformSyncSystem
 import com.yikers.ecs.system.WallFollowSystem
 import com.yikers.physics.PlayContactListener
+import ktx.box2d.body
+import ktx.box2d.circle
 import ktx.box2d.createWorld
 import ktx.math.vec2
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -134,6 +141,63 @@ class HeadlessRunIntegrationTest {
 
         h.world.dispose()
         h.physicsWorld.dispose()
+    }
+
+    // Multiplayer rule ("after last player"): a cleared platform must NOT bridge
+    // while a living climber is still below it (else it'd be sealed under solid
+    // floor); it closes once the last climber is above.
+    @Test
+    fun holeStaysOpenUntilLastClimberPasses() {
+        val cfg = RunConfig()
+        val runState = RunState().apply { highScore = Int.MAX_VALUE }
+        val refs = Refs()
+        val pw = createWorld(gravity = vec2(0f, 0f)) // no gravity: bodies placed by hand
+
+        val world = configureWorld {
+            injectables {
+                add(pw); add(cfg); add(runState); add(refs)
+            }
+            systems { add(PlatformSystem()) }
+        }
+
+        fun climber(y: Float): Entity = world.entity {
+            val b = pw.body {
+                type = BodyDef.BodyType.DynamicBody
+                position.set(GameConfig.WIDTH / 2f, y)
+                circle(radius = GameConfig.BALL_RADIUS) {}
+            }
+            it += Physics(b)
+            it += Player()
+        }
+
+        val platY = 1.0f
+        val platTop = platY + GameConfig.PLATFORM_HEIGHT
+        val left = buildPlatformHalf(pw, 0f, 2.0f, platY)
+        val right = buildPlatformHalf(pw, 3.0f, GameConfig.WIDTH, platY)
+        val plat = world.entity { it += PlatformC(left, right, platY, 2.0f, 1.0f) }
+        left.userData = plat
+        right.userData = plat
+
+        val leader = climber(platTop + 1.0f) // above the platform
+        val laggard = climber(platY - 0.3f)  // still below the platform top
+        refs.player = leader
+
+        with(world) {
+            world.update(DT)
+            assertFalse(plat[PlatformC].bridged) {
+                "hole must stay open while a climber is below it"
+            }
+
+            // last climber clears it -> everyone above -> bridge.
+            laggard[Physics].body.setTransform(GameConfig.WIDTH / 2f, platTop + 1.0f, 0f)
+            world.update(DT)
+            assertTrue(plat[PlatformC].bridged) {
+                "hole must bridge once the last climber is above it"
+            }
+        }
+
+        world.dispose()
+        pw.dispose()
     }
 
     companion object {
