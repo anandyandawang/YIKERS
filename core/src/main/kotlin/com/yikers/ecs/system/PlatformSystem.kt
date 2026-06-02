@@ -71,7 +71,7 @@ class PlatformSystem(
         }
         if (p.bridged) easeGap(p)
 
-        val viewBottom = runState.scrollY - GameConfig.HEIGHT / 2f
+        val viewBottom = runState.scrollY // kill-line = view bottom edge
         if (p.y + GameConfig.PLATFORM_HEIGHT < viewBottom) {
             recycle(entity, p, p.y + GameConfig.PLATFORM_INTERVALS * GameConfig.NUM_PLATFORMS)
             if (MathUtils.random() < cfg.boulderSpawnChance) dropBoulder(p)

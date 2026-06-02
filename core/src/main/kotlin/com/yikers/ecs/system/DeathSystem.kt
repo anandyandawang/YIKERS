@@ -4,7 +4,6 @@ import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import com.github.quillraven.fleks.World.Companion.inject
-import com.yikers.config.GameConfig
 import com.yikers.config.Prefs
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.Dead
@@ -19,7 +18,7 @@ class DeathSystem(
 ) : IteratingSystem(family { all(Controlled, Physics, LethalHit).none(Dead) }) {
     override fun onTickEntity(entity: Entity) {
         val ballY = entity[Physics].body.position.y
-        val viewBottom = runState.scrollY - GameConfig.HEIGHT / 2f
+        val viewBottom = runState.scrollY // kill-line = view bottom edge
         if (entity[LethalHit].hit || ballY < viewBottom) {
             entity.configure { it += Dead() }
         }

@@ -22,23 +22,24 @@ class RenderSystem(
     private val platforms = world.family { all(PlatformC) }
 
     override fun onTick() {
-        // Render path: pull the domain kill-line into the cam each frame, then
-        // draw. ScrollSystem (runs earlier) already advanced scrollY.
-        cam.position.y = runState.scrollY
+        // Render path: kill-line (scrollY) is the view's bottom edge; center the
+        // cam half a view-height above it so [scrollY, scrollY+viewHeight] shows.
+        // ScrollSystem (runs earlier) already advanced scrollY.
+        val viewBottom = runState.scrollY
+        val viewH = runState.viewHeight
+        cam.position.y = viewBottom + viewH / 2f
         cam.update()
         shape.projectionMatrix = cam.combined
         shape.begin(ShapeRenderer.ShapeType.Filled)
-
-        val viewBottom = runState.scrollY - GameConfig.HEIGHT / 2f
 
         shape.color = Color.DARK_GRAY
         shape.rect(0f, 0f, GameConfig.WIDTH, GameConfig.GROUND_HEIGHT)
 
         shape.color = Color.GRAY
-        shape.rect(0f, viewBottom, GameConfig.WALL_THICKNESS, GameConfig.HEIGHT)
+        shape.rect(0f, viewBottom, GameConfig.WALL_THICKNESS, viewH)
         shape.rect(
             GameConfig.WIDTH - GameConfig.WALL_THICKNESS, viewBottom,
-            GameConfig.WALL_THICKNESS, GameConfig.HEIGHT,
+            GameConfig.WALL_THICKNESS, viewH,
         )
 
         shape.color = Color.SLATE

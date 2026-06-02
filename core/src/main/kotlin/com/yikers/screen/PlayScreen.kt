@@ -6,7 +6,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.utils.ScreenUtils
-import com.badlogic.gdx.utils.viewport.FitViewport
+import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.github.quillraven.fleks.World
 import com.github.quillraven.fleks.configureWorld
 import com.yikers.YikersGame
@@ -40,12 +40,15 @@ import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 // Owns one run: builds Box2D + Fleks worlds on show, tears them down on hide.
 class PlayScreen(private val game: YikersGame) : KtxScreen {
     private val camera = OrthographicCamera()
-    private val viewport = FitViewport(GameConfig.WIDTH, GameConfig.HEIGHT, camera)
+    // ExtendViewport: pin world WIDTH to full screen width (no side bars) and let
+    // HEIGHT extend on taller phones, so the bottom sits on the kill-line and
+    // higher-aspect screens see more world above.
+    private val viewport = ExtendViewport(GameConfig.WIDTH, GameConfig.HEIGHT, camera)
 
-    // HUD draws in its own pixel space (480x800) — the world cam is meters now,
-    // so the font would render ~100x too big through it. Stays screen-fixed.
+    // HUD draws in its own pixel space — the world cam is meters, so the font
+    // would render ~100x too big through it. Extends with the screen like the world.
     private val hudCamera = OrthographicCamera()
-    private val hudViewport = FitViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX, hudCamera)
+    private val hudViewport = ExtendViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX, hudCamera)
     private val layout = GlyphLayout()
 
     private lateinit var physicsWorld: PhysicsWorld
@@ -139,6 +142,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     override fun render(delta: Float) {
         ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
         viewport.apply()
+        runState.viewHeight = viewport.worldHeight // device aspect -> visible world height
         world.update(delta)
         drawHud()
 
@@ -150,28 +154,31 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     // the screen. Inherits the world viewport's glViewport rect (same 0.6 aspect),
     // so no hudViewport.apply() needed; matches the old HudSystem draw exactly.
     private fun drawHud() {
+        hudViewport.apply() // world is ExtendViewport (full-screen glViewport); HUD needs its own
         val batch = game.batch
         val font = game.font
+        val w = hudViewport.worldWidth
+        val h = hudViewport.worldHeight
         batch.projectionMatrix = hudCamera.combined
         batch.begin()
         font.color = Color.WHITE
-        font.draw(batch, "SCORE ${runState.score}", 12f, GameConfig.HEIGHT_PX - 12f)
+        font.draw(batch, "SCORE ${runState.score}", 12f, h - 12f)
 
         if (runState.dead) {
-            val midY = GameConfig.HEIGHT_PX / 2f
+            val midY = h / 2f
             font.color = Color.CORAL
-            centeredHud("GAME OVER", midY + 80f)
+            centeredHud("GAME OVER", midY + 80f, w)
             font.color = Color.WHITE
-            centeredHud("SCORE ${runState.score}", midY + 20f)
-            centeredHud("HIGH ${runState.highScore}", midY - 20f)
-            centeredHud("press space", midY - 90f)
+            centeredHud("SCORE ${runState.score}", midY + 20f, w)
+            centeredHud("HIGH ${runState.highScore}", midY - 20f, w)
+            centeredHud("press space", midY - 90f, w)
         }
         batch.end()
     }
 
-    private fun centeredHud(text: String, y: Float) {
+    private fun centeredHud(text: String, y: Float, w: Float) {
         layout.setText(game.font, text)
-        game.font.draw(game.batch, text, GameConfig.WIDTH_PX / 2f - layout.width / 2f, y)
+        game.font.draw(game.batch, text, w / 2f - layout.width / 2f, y)
     }
 
     // Hands-free run returns to the menu (which auto-starts again) after a beat;
