@@ -7,12 +7,15 @@ buildscript {
         maven(url = "https://oss.sonatype.org/content/repositories/snapshots/")
     }
     dependencies {
+        // Kept as a literal: version-catalog (libs.*) accessors are not
+        // available inside a buildscript{} block, since this classpath is
+        // compiled before the catalog exists.
         classpath("com.mobidevelop.robovm:robovm-gradle-plugin:2.3.21")
     }
 }
 
 plugins {
-    kotlin("jvm") version "2.3.21" apply false
+    alias(libs.plugins.kotlin.jvm) apply false
 }
 
 allprojects {
