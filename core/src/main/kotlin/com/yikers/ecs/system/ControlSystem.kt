@@ -98,7 +98,7 @@ class ControlSystem(
         view.supportHoleCenterX = supCx
         view.supportHoleWidth = if (supY == -Float.MAX_VALUE) 0f else supW
 
-        view.distToKillLine = py - (runState.scrollY - GameConfig.HEIGHT / 2f)
+        view.distToKillLine = py - runState.scrollY
         view.gravityPxS2 = gravityPxS2
 
         var n = 0

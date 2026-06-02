@@ -132,9 +132,8 @@ class HeadlessRunIntegrationTest {
         }
         assertFalse(h.runState.dead) { "should still be alive mid-climb" }
 
-        // Forced death: raise the kill-line (RunState.scrollY) above the player so
-        // DeathSystem's viewBottom (scrollY - HEIGHT/2) sits above it; lone climber
-        // -> Dead -> runState.dead.
+        // Forced death: raise the kill-line above the player. scrollY IS the view
+        // bottom now, so DeathSystem marks the lone climber Dead -> run ends.
         h.runState.scrollY = climbedY + GameConfig.HEIGHT
         h.world.update(DT)
         assertTrue(h.runState.dead) { "raising the kill-line above the player must end the run" }

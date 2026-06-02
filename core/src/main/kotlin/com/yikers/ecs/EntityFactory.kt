@@ -57,8 +57,12 @@ fun buildArena(pw: PhysicsWorld): Arena {
         box(width = w, height = h) { friction = 0f }
     }
     val ground = staticBox(GameConfig.WIDTH / 2f, GameConfig.GROUND_HEIGHT / 2f, GameConfig.WIDTH, GameConfig.GROUND_HEIGHT)
-    val left = staticBox(GameConfig.WALL_THICKNESS / 2f, GameConfig.HEIGHT / 2f, GameConfig.WALL_THICKNESS, GameConfig.HEIGHT)
-    val right = staticBox(GameConfig.WIDTH - GameConfig.WALL_THICKNESS / 2f, GameConfig.HEIGHT / 2f, GameConfig.WALL_THICKNESS, GameConfig.HEIGHT)
+    // Walls are 3x the design height so they still span the visible column on
+    // tall (high-aspect) phones where the view extends past HEIGHT. WallFollowSystem
+    // recenters them on the view each tick, so the build-time cy is just a seed.
+    val wallH = GameConfig.HEIGHT * 3f
+    val left = staticBox(GameConfig.WALL_THICKNESS / 2f, wallH / 2f, GameConfig.WALL_THICKNESS, wallH)
+    val right = staticBox(GameConfig.WIDTH - GameConfig.WALL_THICKNESS / 2f, wallH / 2f, GameConfig.WALL_THICKNESS, wallH)
     return Arena(ground, left, right)
 }
 

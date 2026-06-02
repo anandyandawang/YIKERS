@@ -8,11 +8,16 @@ class RunState {
     var dead = false
     var startCamera = false
 
-    // Domain view-bottom / rising kill-line (meters). The scroll system advances
-    // it; the render camera follows it. Init = HEIGHT/2, matching the cam init in
-    // PlayScreen.newRun(). Resets per run since RunState is rebuilt each newRun().
-    var scrollY = GameConfig.HEIGHT / 2f
+    // Rising kill-line = the world Y of the screen's BOTTOM edge (meters). The
+    // scroll system advances it; the camera shows [scrollY, scrollY + viewHeight],
+    // so the bottom is anchored to the kill-line and taller screens see more world
+    // above. Init 0 (ground). Resets per run since RunState is rebuilt each newRun().
+    var scrollY = 0f
     var totalTime = 0f
     var lastPlatformY = 0f
     var highScore = 0
+
+    // Visible world height (meters), driven by the device aspect via ExtendViewport.
+    // Default = design height; PlayScreen updates it from the live viewport.
+    var viewHeight = GameConfig.HEIGHT
 }
