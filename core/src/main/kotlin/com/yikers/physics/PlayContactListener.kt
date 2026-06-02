@@ -11,13 +11,12 @@ import com.yikers.ecs.UD_BALL
 import com.yikers.ecs.UD_FOOT
 import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.Lethal
-import com.yikers.ecs.resource.RunState
+import com.yikers.ecs.component.LethalHit
 
 // foot <-> solid => grounded count. ball <-> lethal => death flag.
 // No world/body mutation here — only counters/flags. Systems act next tick.
 class PlayContactListener(
     private val world: World,
-    private val runState: RunState,
 ) : ContactListener {
 
     override fun beginContact(contact: Contact) = handle(contact, begin = true)
@@ -49,7 +48,7 @@ class PlayContactListener(
                 val otherEntity = other.body.userData as? Entity ?: return
                 if (isLethal(otherEntity)) {
                     val ballEntity = ball.body.userData as? Entity ?: return
-                    runState.lethalHits.add(ballEntity.id)
+                    with(world) { ballEntity[LethalHit].hit = true }
                 }
             }
         }

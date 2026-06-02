@@ -13,6 +13,7 @@ import com.yikers.control.Controller
 import com.yikers.ecs.component.BoulderC
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.FootSensor
+import com.yikers.ecs.component.LethalHit
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.component.Player
@@ -101,6 +102,7 @@ class EntityFactory(
             it += Transform(position = Vector2(x + r, y + r), size = Vector2(r * 2f, r * 2f))
             it += RenderShape(ShapeKind.CIRCLE, color)
             it += Controlled(controller)
+            it += LethalHit()
             it += Player()
         }
         ballBody.userData = entity

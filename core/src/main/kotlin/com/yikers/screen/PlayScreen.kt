@@ -105,7 +105,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
             factory.spawnBoulder(GameConfig.WIDTH / 2f - GameConfig.BOULDER_RADIUS, -3.0f - i * 0.6f)
         }
 
-        physicsWorld.setContactListener(PlayContactListener(world, runState))
+        physicsWorld.setContactListener(PlayContactListener(world))
         built = true
     }
 

@@ -8,6 +8,7 @@ import com.yikers.config.GameConfig
 import com.yikers.config.Prefs
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.Dead
+import com.yikers.ecs.component.LethalHit
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.resource.RunState
 
@@ -15,11 +16,11 @@ import com.yikers.ecs.resource.RunState
 // hazard is marked Dead. The run ends only once no living climber remains.
 class DeathSystem(
     private val runState: RunState = inject(),
-) : IteratingSystem(family { all(Controlled, Physics).none(Dead) }) {
+) : IteratingSystem(family { all(Controlled, Physics, LethalHit).none(Dead) }) {
     override fun onTickEntity(entity: Entity) {
         val ballY = entity[Physics].body.position.y
         val viewBottom = runState.scrollY - GameConfig.HEIGHT / 2f
-        if (entity.id in runState.lethalHits || ballY < viewBottom) {
+        if (entity[LethalHit].hit || ballY < viewBottom) {
             entity.configure { it += Dead() }
         }
     }
