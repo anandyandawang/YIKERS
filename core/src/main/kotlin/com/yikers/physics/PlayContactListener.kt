@@ -49,7 +49,7 @@ class PlayContactListener(
                 val otherEntity = other.body.userData as? Entity ?: return
                 if (isLethal(otherEntity)) {
                     val ballEntity = ball.body.userData as? Entity ?: return
-                    runState.lethalHits.add(ballEntity)
+                    runState.lethalHits.add(ballEntity.id)
                 }
             }
         }

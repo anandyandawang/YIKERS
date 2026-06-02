@@ -1,7 +1,7 @@
 package com.yikers.ecs.resource
 
 import com.yikers.config.GameConfig
-import com.yikers.ecs.EntitySet
+import com.yikers.ecs.EntityId
 
 // Live run state shared across systems + screen.
 class RunState {
@@ -18,6 +18,6 @@ class RunState {
     var highScore = 0
 
     // Climbers whose ball touched a hazard this run; DeathSystem kills them.
-    // EntitySet (not HashSet<Entity>) dodges an iOS/RoboVM crash; see its doc.
-    val lethalHits = EntitySet()
+    // Keyed by EntityId (Int) not Entity: dodges an iOS/RoboVM crash; see EntityId.
+    val lethalHits = HashSet<EntityId>()
 }
