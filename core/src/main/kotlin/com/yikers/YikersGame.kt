@@ -52,6 +52,13 @@ class YikersGame : KtxGame<KtxScreen>() {
             t.printStackTrace(PrintWriter(sw))
             crashText = sw.toString()
             Gdx.app.error("YIKERS", "uncaught in render loop", t)
+            // Font renders nothing on iOS, so the on-screen dump is unreadable.
+            // Persist the trace to a file too. external == Documents on iOS, and
+            // UIFileSharingEnabled/LSSupportsOpeningDocumentsInPlace (Info.plist)
+            // surface it in the Files app: On My iPhone -> YIKERS -> yikers-crash.txt.
+            // Write to local as a fallback path. Remove once the crash is fixed.
+            runCatching { Gdx.files.external("yikers-crash.txt").writeString(crashText, false) }
+            runCatching { Gdx.files.local("yikers-crash.txt").writeString(crashText, false) }
         }
     }
 
