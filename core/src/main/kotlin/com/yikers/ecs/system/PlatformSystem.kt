@@ -9,42 +9,68 @@ import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
 import com.yikers.ecs.buildPlatformHalf
 import com.yikers.ecs.component.BoulderC
+import com.yikers.ecs.component.Dead
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
+import com.yikers.ecs.component.Player
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
-// Score on platform clear, then bridge its hole shut so the player can't fall
-// back through; recycle platforms that scrolled below the kill-line and randomly
-// drop a boulder on them.
+// Score on the primary climber's platform clears. Bridge a hole shut only once
+// EVERY living climber has cleared it, so none is sealed underneath. Recycle
+// platforms that scrolled below the kill-line and randomly drop a boulder on them.
 class PlatformSystem(
     private val pw: PhysicsWorld = inject(),
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
     private val refs: Refs = inject(),
 ) : IteratingSystem(family { all(PlatformC) }) {
-    override fun onTickEntity(entity: Entity) {
-        if (runState.dead) return
-        val p = entity[PlatformC]
-        val player = refs.player ?: return
-        val ballY = player[Physics].body.position.y
+    // Every living climber (mirror of ControlSystem's percept set).
+    private val livePlayers = family { all(Player, Physics).none(Dead) }
+    private var lowestLiveY = Float.MAX_VALUE
 
-        if (!p.cleared && ballY > p.y + GameConfig.PLATFORM_HEIGHT) {
-            p.cleared = true
-            val gained = if (runState.lastPlatformY == 0f) {
-                1
-            } else {
-                ((p.y - runState.lastPlatformY) / GameConfig.PLATFORM_INTERVALS).toInt().coerceAtLeast(1)
+    override fun onTick() {
+        if (runState.dead) return
+        // Lowest living climber drives hole-closing: a platform stays open until
+        // even the last one is above it.
+        lowestLiveY = Float.MAX_VALUE
+        livePlayers.forEach { e ->
+            val y = e[Physics].body.position.y
+            if (y < lowestLiveY) lowestLiveY = y
+        }
+        super.onTick()
+    }
+
+    override fun onTickEntity(entity: Entity) {
+        val p = entity[PlatformC]
+
+        // Scoring + camera-start track the primary climber only.
+        val primary = refs.player
+        if (primary != null && !p.cleared) {
+            val primaryY = primary[Physics].body.position.y
+            if (primaryY > p.y + GameConfig.PLATFORM_HEIGHT) {
+                p.cleared = true
+                val gained = if (runState.lastPlatformY == 0f) {
+                    1
+                } else {
+                    ((p.y - runState.lastPlatformY) / GameConfig.PLATFORM_INTERVALS).toInt().coerceAtLeast(1)
+                }
+                runState.score += gained * cfg.scoreScale
+                runState.lastPlatformY = p.y
+                runState.startCamera = true
             }
-            runState.score += gained * cfg.scoreScale
-            runState.lastPlatformY = p.y
-            runState.startCamera = true
         }
 
-        // Cleared platforms close their hole (matches YIKES): snap the physics
-        // solid once, then ease the rendered gap shut.
-        if (p.cleared) closeHole(entity, p)
+        // Close only once EVERY living climber has cleared it (matches YIKES'
+        // bridge), so none is sealed below: snap the physics solid once, then ease
+        // the rendered gap shut from both ends.
+        if (!p.bridged && lowestLiveY != Float.MAX_VALUE &&
+            lowestLiveY > p.y + GameConfig.PLATFORM_HEIGHT
+        ) {
+            bridge(entity, p)
+        }
+        if (p.bridged) easeGap(p)
 
         val viewBottom = runState.scrollY - GameConfig.HEIGHT / 2f
         if (p.y + GameConfig.PLATFORM_HEIGHT < viewBottom) {
@@ -53,20 +79,22 @@ class PlatformSystem(
         }
     }
 
-    // One-shot extends the right half over the gap so the platform is solid; the
-    // rendered holeWidth then eases to 0 for the "sliding shut" look.
-    private fun closeHole(entity: Entity, p: PlatformC) {
-        if (!p.bridged) {
-            pw.destroyBody(p.rightBody)
-            val right = buildPlatformHalf(pw, p.holeX, GameConfig.WIDTH, p.y)
-            right.userData = entity
-            p.rightBody = right
-            p.bridged = true
-        }
-        if (p.holeWidth > 0f) {
-            p.holeWidth -= p.holeWidth * (GameConfig.PLATFORM_CLOSE_SPEED * deltaTime).coerceAtMost(1f)
-            if (p.holeWidth < 0.02f) p.holeWidth = 0f
-        }
+    // One-shot: extend the right half over the gap so the platform reads solid.
+    private fun bridge(entity: Entity, p: PlatformC) {
+        pw.destroyBody(p.rightBody)
+        val right = buildPlatformHalf(pw, p.holeX, GameConfig.WIDTH, p.y)
+        right.userData = entity
+        p.rightBody = right
+        p.bridged = true
+    }
+
+    // Ease the rendered gap shut from both ends (halves grow toward its center).
+    private fun easeGap(p: PlatformC) {
+        if (p.holeWidth <= 0f) return
+        val center = p.holeX + p.holeWidth / 2f
+        p.holeWidth -= p.holeWidth * (GameConfig.PLATFORM_CLOSE_SPEED * deltaTime).coerceAtMost(1f)
+        if (p.holeWidth < 0.02f) p.holeWidth = 0f
+        p.holeX = center - p.holeWidth / 2f
     }
 
     private fun recycle(entity: Entity, p: PlatformC, newY: Float) {

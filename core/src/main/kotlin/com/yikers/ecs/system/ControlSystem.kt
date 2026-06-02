@@ -73,16 +73,20 @@ class ControlSystem(
         var supW = 0f
         platforms.forEach { e ->
             val p = e[PlatformC]
-            val cx = p.holeX + p.holeWidth / 2f
+            // A bridged platform is solid in the physics world, so the bot treats
+            // it as having no hole. Key off bridged (not cleared): with several
+            // climbers a hole stays open — and passable — until the last one is up.
+            val holeW = if (p.bridged) 0f else p.holeWidth
+            val cx = if (p.bridged) GameConfig.WIDTH / 2f else p.holeX + p.holeWidth / 2f
             if (p.y > py) {
                 if (p.y < firstY) {
                     secondY = firstY; secondCx = firstCx; secondW = firstW
-                    firstY = p.y; firstCx = cx; firstW = p.holeWidth
+                    firstY = p.y; firstCx = cx; firstW = holeW
                 } else if (p.y < secondY) {
-                    secondY = p.y; secondCx = cx; secondW = p.holeWidth
+                    secondY = p.y; secondCx = cx; secondW = holeW
                 }
             } else if (p.y > supY) {
-                supY = p.y; supCx = cx; supW = p.holeWidth
+                supY = p.y; supCx = cx; supW = holeW
             }
         }
         view.targetHoleCenterX = firstCx
