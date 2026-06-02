@@ -1,0 +1,36 @@
+# Build unsigned iOS IPA on merge to main (+ manual run).
+# IPA come out unsigned. Sign local with Sideloadly/AltStore + free
+# Apple ID, then install on phone. CI hold no Apple creds.
+name: iOS IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    name: Build unsigned iOS IPA
+    runs-on: macos-latest          # Xcode + iOS SDK preinstalled
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      # RoboVM createIPA. iosSkipSigning skip cert need = unsigned IPA.
+      - name: Build unsigned IPA
+        run: ./gradlew :ios:createIPA -Drobovm.iosSkipSigning=true --no-daemon --stacktrace
+
+      - name: Upload IPA artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yikers-unsigned-ipa
+          path: ios/build/robovm/**/*.ipa
+          if-no-files-found: error
