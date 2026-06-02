@@ -97,7 +97,7 @@ class HeadlessRunIntegrationTest {
             factory.spawnBoulder(GameConfig.WIDTH / 2f - GameConfig.BOULDER_RADIUS, -3.0f - i * 0.6f)
         }
 
-        physicsWorld.setContactListener(PlayContactListener(world, runState))
+        physicsWorld.setContactListener(PlayContactListener(world))
         return Harness(physicsWorld, world, runState, refs)
     }
 
