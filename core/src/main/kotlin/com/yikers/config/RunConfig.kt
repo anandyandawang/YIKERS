@@ -11,8 +11,7 @@ data class RunConfig(
     var jumpVelocity: Float = 10f,        // YIKES 50 * 0.2
     var horizontalSpeed: Float = 4f,      // YIKES 20 * 0.2; key speed + tilt accelX scale
     var gravityScale: Float = 1f,
-    var doubleJumpEnabled: Boolean = false,
-    var maxAirJumps: Int = 0,
+    var maxAirJumps: Int = 1,             // extra mid-air jumps when DOUBLE_JUMP augment owned
     var boulderSpawnChance: Float = 1f,   // 0..1 on platform recycle
     var boulderSpeedMin: Float = 4f,      // YIKES 20 * 0.2
     var boulderSpeedMax: Float = 6f,      // YIKES 30 * 0.2

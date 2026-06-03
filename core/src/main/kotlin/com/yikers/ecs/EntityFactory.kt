@@ -10,6 +10,7 @@ import com.github.quillraven.fleks.World
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
 import com.yikers.control.Controller
+import com.yikers.ecs.component.Augments
 import com.yikers.ecs.component.BoulderC
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.FootSensor
@@ -111,6 +112,7 @@ class EntityFactory(
             it += Controlled(controller)
             it += LethalHit()
             it += Player()
+            it += Augments()              // inert: no augments owned yet
         }
         ballBody.userData = entity
         footBody.userData = entity

@@ -9,6 +9,8 @@ import com.yikers.config.RunConfig
 import com.yikers.control.BotController
 import com.yikers.control.BotView
 import com.yikers.control.ControlContext
+import com.yikers.ecs.component.Augment
+import com.yikers.ecs.component.Augments
 import com.yikers.ecs.component.BoulderC
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.Dead
@@ -37,6 +39,8 @@ class ControlSystem(
         if (runState.dead) return
         val body = entity[Physics].body
         val grounded = entity[FootSensor].contacts > 0
+        val augments = entity[Augments]
+        if (grounded) augments.airJumpsUsed = 0
 
         ctx.playerX = body.position.x
         ctx.playerY = body.position.y
@@ -52,8 +56,15 @@ class ControlSystem(
 
         val move = controller.decide(ctx)
         body.setLinearVelocity(move.vx, body.linearVelocity.y)
-        if (move.jump && grounded) {
-            body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
+        if (move.jump) {
+            val canAirJump = Augment.DOUBLE_JUMP in augments.owned &&
+                augments.airJumpsUsed < cfg.maxAirJumps
+            if (grounded) {
+                body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
+            } else if (canAirJump) {
+                body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
+                augments.airJumpsUsed++
+            }
         }
     }
 
