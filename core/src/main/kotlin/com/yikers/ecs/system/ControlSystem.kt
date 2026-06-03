@@ -19,12 +19,12 @@ import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.resource.RunState
 import kotlin.math.abs
 
-// Per-climber control: each entity's Controller decides its move this frame; we
-// record it as Intent and apply the base horizontal velocity. Mechanic systems
-// (JumpSystem, ...) read Intent downstream, so this stays free of per-augment
-// branches. Humans read input, bots read world state. Original feel preserved:
-// held arrow = horizontal velocity (keeps x-momentum on jump). ctx carries only
-// the climber's own state; a bot's world percept goes into its BotView.
+// Per-climber control: each entity's Controller decides its move this frame and
+// we record it as Intent -- nothing more. This is the sole port to the
+// Controllers (human input / bot AI); mechanic systems (MoveSystem, JumpSystem,
+// ...) read Intent downstream and enact it, so ControlSystem makes no physics
+// writes and holds no per-augment branches. ctx carries the climber's own state;
+// a bot's world percept goes into its BotView.
 class ControlSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
@@ -53,8 +53,9 @@ class ControlSystem(
         }
 
         val move = controller.decide(ctx)
-        body.setLinearVelocity(move.vx, body.linearVelocity.y)
-        entity[Intent].jump = move.jump
+        val intent = entity[Intent]
+        intent.vx = move.vx
+        intent.jump = move.jump
     }
 
     // Project the world into the bot's percept: the two lowest holes above it,

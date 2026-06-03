@@ -27,6 +27,7 @@ import com.yikers.ecs.system.ScrollSystem
 import com.yikers.ecs.system.ControlSystem
 import com.yikers.ecs.system.DeathSystem
 import com.yikers.ecs.system.JumpSystem
+import com.yikers.ecs.system.MoveSystem
 import com.yikers.ecs.system.PhysicsStepSystem
 import com.yikers.ecs.system.PlatformSystem
 import com.yikers.ecs.system.RenderSystem
@@ -89,6 +90,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
             }
             systems {
                 add(ControlSystem())
+                add(MoveSystem())
                 add(JumpSystem())
                 add(WallFollowSystem())
                 add(PhysicsStepSystem())
