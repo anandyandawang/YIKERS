@@ -9,6 +9,7 @@ import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.Dead
 import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.Intent
+import com.yikers.ecs.component.JumpState
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.augment.Augments
 import com.yikers.ecs.component.augment.GrantsAirJumps
@@ -22,24 +23,24 @@ import com.yikers.ecs.resource.RunState
 class JumpSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
-) : IteratingSystem(family { all(Controlled, Physics, FootSensor, Intent, Augments).none(Dead) }) {
+) : IteratingSystem(family { all(Controlled, Physics, FootSensor, Intent, Augments, JumpState).none(Dead) }) {
     override fun onTickEntity(entity: Entity) {
         if (runState.dead) return
         val body = entity[Physics].body
         val grounded = entity[FootSensor].contacts > 0
-        val augments = entity[Augments]
-        if (grounded) augments.airJumpsUsed = 0
+        val jumpState = entity[JumpState]
+        if (grounded) jumpState.airJumpsUsed = 0
 
         if (!entity[Intent].jump) return
         if (grounded) {
             body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
         } else {
             // air jump: spend one if owned augments grant any (e.g. DoubleJump)
-            val airJumps = augments.owned.filterIsInstance<GrantsAirJumps>()
+            val airJumps = entity[Augments].owned.filterIsInstance<GrantsAirJumps>()
                 .sumOf { it.extraAirJumps }
-            if (augments.airJumpsUsed < airJumps) {
+            if (jumpState.airJumpsUsed < airJumps) {
                 body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
-                augments.airJumpsUsed++
+                jumpState.airJumpsUsed++
             }
         }
     }

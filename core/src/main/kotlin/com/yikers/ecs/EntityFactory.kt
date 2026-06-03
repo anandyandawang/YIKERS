@@ -14,6 +14,7 @@ import com.yikers.ecs.component.BoulderC
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.Intent
+import com.yikers.ecs.component.JumpState
 import com.yikers.ecs.component.LethalHit
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
@@ -112,6 +113,7 @@ class EntityFactory(
             it += RenderShape(ShapeKind.CIRCLE, color)
             it += Controlled(controller)
             it += Intent()
+            it += JumpState()
             it += LethalHit()
             it += Player()
             it += Augments()              // inert: no augments owned yet
