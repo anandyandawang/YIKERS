@@ -11,6 +11,7 @@ import com.yikers.control.BotView
 import com.yikers.control.ControlContext
 import com.yikers.ecs.component.Augments
 import com.yikers.ecs.component.BoulderC
+import com.yikers.ecs.component.airJumpBudget
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.Dead
 import com.yikers.ecs.component.FootSensor
@@ -56,11 +57,9 @@ class ControlSystem(
         val move = controller.decide(ctx)
         body.setLinearVelocity(move.vx, body.linearVelocity.y)
         if (move.jump) {
-            // per-climber air-jump budget = sum of bonuses from owned augments
-            val maxAirJumps = augments.owned.sumOf { it.bonusAirJumps }
             if (grounded) {
                 body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
-            } else if (augments.airJumpsUsed < maxAirJumps) {
+            } else if (augments.airJumpsUsed < augments.airJumpBudget) {
                 body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
                 augments.airJumpsUsed++
             }
