@@ -11,6 +11,11 @@
       <directory>../assets</directory>
       <skipPngCrush>true</skipPngCrush>
     </resource>
+    <!-- Launch storyboard. RoboVM runs ibtool on it so iOS renders at the
+         device native resolution instead of the letterboxed legacy canvas. -->
+    <resource>
+      <path>LaunchScreen.storyboard</path>
+    </resource>
   </resources>
   <forceLinkClasses>
     <pattern>com.badlogic.gdx.scenes.scene2d.ui.*</pattern>

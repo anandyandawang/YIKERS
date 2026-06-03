@@ -43,6 +43,11 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<!-- Launch storyboard. Required so iOS renders at the device native
+	     resolution (full screen). Without it iOS uses the legacy canvas and
+	     letterboxes with black bars top and bottom on tall phones. -->
+	<key>UILaunchStoryboardName</key>
+	<string>LaunchScreen</string>
 	<key>UIStatusBarHidden</key>
 	<true/>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
