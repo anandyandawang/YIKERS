@@ -23,6 +23,8 @@ import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.BoulderSystem
 import com.yikers.ecs.system.ControlSystem
 import com.yikers.ecs.system.DeathSystem
+import com.yikers.ecs.system.JumpSystem
+import com.yikers.ecs.system.MoveSystem
 import com.yikers.ecs.system.PhysicsStepSystem
 import com.yikers.ecs.system.PlatformSystem
 import com.yikers.ecs.system.ScrollSystem
@@ -55,7 +57,7 @@ class HeadlessRunIntegrationTest {
 
     // Mirror of PlayScreen.newRun() MINUS RenderSystem and the GL ShapeRenderer
     // injectable. The sim is camera-free (kill-line = RunState.scrollY), so no
-    // OrthographicCamera is needed. Keep this 8-system list canonical: Gdx.gl is
+    // OrthographicCamera is needed. Keep this 10-system list canonical: Gdx.gl is
     // null headless, so adding a GL system here NPEs at once.
     private fun buildHeadlessWorld(): Harness {
         val cfg = RunConfig()
@@ -77,6 +79,8 @@ class HeadlessRunIntegrationTest {
             }
             systems {
                 add(ControlSystem())
+                add(MoveSystem())
+                add(JumpSystem())
                 add(WallFollowSystem())
                 add(PhysicsStepSystem())
                 add(TransformSyncSystem())
