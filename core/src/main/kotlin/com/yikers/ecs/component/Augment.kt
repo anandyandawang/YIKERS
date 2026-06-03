@@ -1,25 +1,21 @@
 package com.yikers.ecs.component
 
-// Roguelite augment catalog. Each augment is a sealed variant carrying only its
-// own data, and implements capability traits for the effects it grants. Core
-// systems query by trait (e.g. GrantsAirJumps), never by concrete augment, so
-// adding an augment touches only this file -- no per-augment branches scattered
-// across the mechanic systems.
+// Root of the augment catalog + the capability contracts. Concrete augments live
+// one-per-file (e.g. DoubleJump.kt) -- a sealed type only needs the same PACKAGE,
+// not the same file -- so this file never holds the catalog. It keeps only the
+// sealed root, the capability traits, and their folds, all bounded by the number
+// of EFFECT KINDS, not by how many augments exist.
 sealed interface Augment
 
-// Capability traits. An augment implements only the ones relevant to it, so no
-// augment carries fields it does not use. New effect kind = new trait + a query
-// in whichever mechanic system consumes it.
+// Capability traits. An augment implements only the ones it grants, so no augment
+// carries fields it does not use. New effect kind = new trait (+ a fold below,
+// and a query in whichever mechanic system consumes it).
 interface GrantsAirJumps {
     val extraAirJumps: Int
 }
 
-data object DoubleJump : Augment, GrantsAirJumps {
-    override val extraAirJumps = 1
-}
-
-// Derived per-climber budgets, folded from the owned augments. Lives next to the
-// catalog so the effect math stays out of the mechanic systems; ControlSystem
-// just reads airJumpBudget.
+// Capability folds: turn a climber's owned augments into one derived number that
+// the mechanic systems read. One per capability, so this list tracks effect kinds
+// (handful), not the catalog.
 val Augments.airJumpBudget: Int
     get() = owned.filterIsInstance<GrantsAirJumps>().sumOf { it.extraAirJumps }
