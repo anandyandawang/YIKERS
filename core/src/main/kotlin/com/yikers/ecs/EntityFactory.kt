@@ -13,6 +13,8 @@ import com.yikers.control.Controller
 import com.yikers.ecs.component.BoulderC
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.FootSensor
+import com.yikers.ecs.component.Intent
+import com.yikers.ecs.component.JumpState
 import com.yikers.ecs.component.LethalHit
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
@@ -20,6 +22,7 @@ import com.yikers.ecs.component.Player
 import com.yikers.ecs.component.RenderShape
 import com.yikers.ecs.component.ShapeKind
 import com.yikers.ecs.component.Transform
+import com.yikers.ecs.component.augment.Augments
 import com.yikers.ecs.resource.Arena
 import com.yikers.ecs.resource.Refs
 import ktx.box2d.body
@@ -109,8 +112,11 @@ class EntityFactory(
             it += Transform(position = Vector2(x + r, y + r), size = Vector2(r * 2f, r * 2f))
             it += RenderShape(ShapeKind.CIRCLE, color)
             it += Controlled(controller)
+            it += Intent()
+            it += JumpState()
             it += LethalHit()
             it += Player()
+            it += Augments()              // inert: no augments owned yet
         }
         ballBody.userData = entity
         footBody.userData = entity
