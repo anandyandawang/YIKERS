@@ -18,10 +18,10 @@ import com.yikers.ecs.resource.RunState
 // Augment acquisition. When the run's score crosses the next OFFER_INTERVAL, every
 // living climber is offered up to OFFER_SIZE unowned augments (a DraftOffer). Bots
 // resolve at once -- they pick at random. Humans keep their offer until the screen
-// applies their choice, and the run stays paused (RunState.paused) until no human
-// offer remains: "one player crosses 50" opens the round, "all players have picked"
-// closes it. Advancing the threshold before rolling means an exhausted catalog
-// (nothing new to offer anyone) just skips the round instead of retrying each tick.
+// (DraftOverlay) applies their choice, and the run stays paused (RunState.paused)
+// while any human still owes a pick: "one player crosses 50" opens the round, "all
+// players have picked" closes it. Advancing the threshold before rolling means an
+// exhausted catalog (nothing new to offer anyone) just skips the round.
 class DraftSystem(
     private val runState: RunState = inject(),
     private val draft: Draft = inject(),
@@ -40,8 +40,7 @@ class DraftSystem(
                 openRound()
             }
             resolveBots()
-            draft.currentHuman = firstPendingHuman()
-            runState.paused = draft.isAwaitingHuman
+            runState.paused = anyHumanPending()
         }
     }
 
@@ -64,7 +63,7 @@ class DraftSystem(
             val offer = e[DraftOffer]
             val owned = e[Augments].owned
             val choice = offer.options[MathUtils.random(offer.options.size - 1)]
-            if (owned.size >= Draft.MAX_AUGMENTS) {
+            if (owned.size >= Augments.MAX) {
                 owned -= owned.toList()[MathUtils.random(owned.size - 1)]
             }
             owned += choice
@@ -72,12 +71,10 @@ class DraftSystem(
         }
     }
 
-    // The first human still holding an offer -- the one the screen prompts now.
-    private fun firstPendingHuman(): Entity? = with(world) {
-        var found: Entity? = null
-        pending.forEach { e ->
-            if (found == null && e[Controlled].controller is HumanController) found = e
-        }
-        found
+    // A human still owes a pick -> keep the run paused (the screen shows the draft).
+    private fun anyHumanPending(): Boolean = with(world) {
+        var any = false
+        pending.forEach { e -> if (!any && e[Controlled].controller is HumanController) any = true }
+        any
     }
 }

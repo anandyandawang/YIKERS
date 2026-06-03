@@ -43,7 +43,6 @@ import ktx.box2d.body
 import ktx.box2d.circle
 import ktx.box2d.createWorld
 import ktx.math.vec2
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -448,14 +447,12 @@ class HeadlessRunIntegrationTest {
             "a human keeps its offer until it picks"
         }
         assertTrue(h.runState.paused) { "an open human offer pauses the run" }
-        assertEquals(human, h.draft.currentHuman)
 
         // Resolve as the screen would on a skip: drop the offer.
         with(h.world) { human.configure { it -= DraftOffer } }
         h.world.update(DT)
 
         assertFalse(h.runState.paused) { "the run resumes once no human offer remains" }
-        assertEquals(null, h.draft.currentHuman)
         h.world.dispose()
     }
 

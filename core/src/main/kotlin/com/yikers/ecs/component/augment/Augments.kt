@@ -11,5 +11,10 @@ data class Augments(
     val owned: MutableSet<Augment> = mutableSetOf(),
 ) : Component<Augments> {
     override fun type() = Augments
-    companion object : ComponentType<Augments>()
+    companion object : ComponentType<Augments>() {
+        // Max augments a climber may own at once. A draft pick at this cap must
+        // swap one out (DraftOverlay enforces it). Lives here: it's a rule of the
+        // owned set, not of the draft that happens to apply it.
+        const val MAX = 5
+    }
 }
