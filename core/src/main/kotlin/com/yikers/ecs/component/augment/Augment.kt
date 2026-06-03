@@ -7,7 +7,7 @@ package com.yikers.ecs.component.augment
 //
 // Rule: an augment is pure DATA (the traits it implements + their params). The
 // mechanic that honors a capability lives in a system (or the contact listener)
-// and queries augments.granting<Trait>(); no system names a concrete augment, and
+// and queries augments.with<Trait>(); no system names a concrete augment, and
 // augment files never touch the engine.
 sealed interface Augment
 
@@ -17,5 +17,5 @@ interface GrantsAirJumps {
 }
 
 // Owned augments implementing capability trait T. Lets a mechanic system pull
-// just the augments it cares about, e.g. augments.granting<GrantsAirJumps>().
-inline fun <reified T> Augments.granting(): List<T> = owned.filterIsInstance<T>()
+// just the augments it cares about, e.g. augments.with<GrantsAirJumps>().
+inline fun <reified T> Augments.with(): List<T> = owned.filterIsInstance<T>()
