@@ -1,4 +1,7 @@
-// Root build. No code here. Subprojects pull shared repos + kotlin.
+// Root build. No code here. Subprojects pull shared repos and each applies its
+// own Kotlin plugin — deliberately NOT declared apply-false here, so Kotlin
+// stays off a shared root classpath. That lets :android load AGP + kotlin-android
+// in one classloader; otherwise kotlin-android can't see AGP's BaseExtension.
 // The RoboVM gradle plugin has no plugins{} marker, so the ios module
 // applies it the legacy way; its classpath is declared here.
 buildscript {
@@ -12,10 +15,6 @@ buildscript {
         // compiled before the catalog exists.
         classpath("com.mobidevelop.robovm:robovm-gradle-plugin:2.3.21")
     }
-}
-
-plugins {
-    alias(libs.plugins.kotlin.jvm) apply false
 }
 
 allprojects {

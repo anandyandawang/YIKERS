@@ -1,0 +1,48 @@
+# Build an installable Android APK on merge to main (+ manual run).
+# Debug build type = signed with the auto-generated debug key, so the APK
+# installs straight onto a phone (sideload) with no extra signing step.
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    name: Build debug APK
+    runs-on: ubuntu-latest         # Android SDK; no macOS needed
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      # local.properties' sdk.dir both points AGP at the SDK and flips the
+      # settings.gradle.kts gate that includes :android.
+      - name: Point Gradle at the SDK
+        run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: Build debug APK
+        run: ./gradlew :android:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: yikers-debug-apk
+          path: android/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

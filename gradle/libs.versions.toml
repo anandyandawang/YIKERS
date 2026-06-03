@@ -7,6 +7,7 @@ fleks = "2.14"
 junit = "5.11.4"
 kotlin = "2.3.21"
 robovm = "2.3.24"
+agp = "8.7.3"
 
 [libraries]
 gdx = { module = "com.badlogicgames.gdx:gdx", version.ref = "gdx" }
@@ -14,6 +15,7 @@ gdx-box2d = { module = "com.badlogicgames.gdx:gdx-box2d", version.ref = "gdx" }
 gdx-backend-headless = { module = "com.badlogicgames.gdx:gdx-backend-headless", version.ref = "gdx" }
 gdx-backend-lwjgl3 = { module = "com.badlogicgames.gdx:gdx-backend-lwjgl3", version.ref = "gdx" }
 gdx-backend-robovm = { module = "com.badlogicgames.gdx:gdx-backend-robovm", version.ref = "gdx" }
+gdx-backend-android = { module = "com.badlogicgames.gdx:gdx-backend-android", version.ref = "gdx" }
 # Native artifacts: classifier (natives-desktop / natives-ios) added in
 # build scripts via variantOf(...) { classifier("...") }.
 gdx-platform = { module = "com.badlogicgames.gdx:gdx-platform", version.ref = "gdx" }
@@ -35,3 +37,5 @@ robovm-cocoatouch = { module = "com.mobidevelop.robovm:robovm-cocoatouch", versi
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+android-application = { id = "com.android.application", version.ref = "agp" }

@@ -1,6 +1,8 @@
 # Gradle
 .gradle/
 build/
+# Android SDK path — machine-specific; CI + Studio write it
+local.properties
 
 # Kotlin compiler daemon
 .kotlin/
