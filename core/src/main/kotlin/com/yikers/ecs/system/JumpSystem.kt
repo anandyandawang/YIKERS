@@ -26,7 +26,7 @@ class JumpSystem(
     private val runState: RunState = inject(),
 ) : IteratingSystem(family { all(Controlled, Physics, FootSensor, Intent, Augments, JumpState).none(Dead) }) {
     override fun onTickEntity(entity: Entity) {
-        if (runState.dead) return
+        if (runState.dead || runState.paused) return
         val body = entity[Physics].body
         val grounded = entity[FootSensor].contacts > 0
         val jumpState = entity[JumpState]

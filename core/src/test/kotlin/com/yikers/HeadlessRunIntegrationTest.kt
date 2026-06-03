@@ -10,19 +10,27 @@ import com.github.quillraven.fleks.configureWorld
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
 import com.yikers.control.BotController
+import com.yikers.control.Controller
+import com.yikers.control.HumanController
 import com.badlogic.gdx.physics.box2d.BodyDef
 import com.github.quillraven.fleks.Entity
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.buildArena
 import com.yikers.ecs.buildPlatformHalf
+import com.yikers.ecs.component.Controlled
+import com.yikers.ecs.component.DraftOffer
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.component.Player
+import com.yikers.ecs.component.augment.Augments
+import com.yikers.ecs.component.augment.augmentCatalog
+import com.yikers.ecs.resource.Draft
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.BoulderSystem
 import com.yikers.ecs.system.ControlSystem
 import com.yikers.ecs.system.DeathSystem
+import com.yikers.ecs.system.DraftSystem
 import com.yikers.ecs.system.JumpSystem
 import com.yikers.ecs.system.MoveSystem
 import com.yikers.ecs.system.PhysicsStepSystem
@@ -35,6 +43,7 @@ import ktx.box2d.body
 import ktx.box2d.circle
 import ktx.box2d.createWorld
 import ktx.math.vec2
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -53,17 +62,19 @@ class HeadlessRunIntegrationTest {
         val world: World,
         val runState: RunState,
         val refs: Refs,
+        val draft: Draft,
     )
 
     // Mirror of PlayScreen.newRun() MINUS RenderSystem and the GL ShapeRenderer
     // injectable. The sim is camera-free (kill-line = RunState.scrollY), so no
-    // OrthographicCamera is needed. Keep this 10-system list canonical: Gdx.gl is
+    // OrthographicCamera is needed. Keep this 11-system list canonical: Gdx.gl is
     // null headless, so adding a GL system here NPEs at once.
     private fun buildHeadlessWorld(): Harness {
         val cfg = RunConfig()
         // Big highScore => DeathSystem never writes Prefs (Gdx.app file) at run-end.
         val runState = RunState().apply { highScore = Int.MAX_VALUE }
         val refs = Refs()
+        val draft = Draft()
 
         val physicsWorld = createWorld(gravity = vec2(0f, GameConfig.GRAVITY * cfg.gravityScale))
         val arena = buildArena(physicsWorld)
@@ -73,6 +84,7 @@ class HeadlessRunIntegrationTest {
                 add(physicsWorld)
                 add(cfg)
                 add(runState)
+                add(draft)
                 add(arena)
                 add(refs)
                 // NO camera / ShapeRenderer: RenderSystem excluded, sim is camera-free.
@@ -87,6 +99,7 @@ class HeadlessRunIntegrationTest {
                 add(BoulderSystem())
                 add(PlatformSystem())
                 add(ScrollSystem())
+                add(DraftSystem())
                 add(DeathSystem())
                 // NO RenderSystem.
             }
@@ -109,7 +122,7 @@ class HeadlessRunIntegrationTest {
         }
 
         physicsWorld.setContactListener(PlayContactListener(world))
-        return Harness(physicsWorld, world, runState, refs)
+        return Harness(physicsWorld, world, runState, refs, draft)
     }
 
     // Player ball center Y, in meters.
@@ -374,6 +387,115 @@ class HeadlessRunIntegrationTest {
 
         world.dispose()
         pw.dispose()
+    }
+
+    // ---- Augment draft (acquisition) ----
+
+    private class DraftHarness(
+        val world: World,
+        val runState: RunState,
+        val draft: Draft,
+        val climbers: List<Entity>,
+    )
+
+    // A tiny world with only DraftSystem and one climber per controller (each with
+    // an empty Augments set). No physics: DraftSystem reads score + each climber's
+    // Augments and writes DraftOffer / RunState.paused.
+    private fun buildDraftWorld(vararg controllers: Controller): DraftHarness {
+        val runState = RunState().apply { highScore = Int.MAX_VALUE }
+        val draft = Draft()
+        val world = configureWorld {
+            injectables {
+                add(runState)
+                add(draft)
+            }
+            systems { add(DraftSystem()) }
+        }
+        val climbers = controllers.map { c ->
+            world.entity { it += Player(); it += Augments(); it += Controlled(c) }
+        }
+        return DraftHarness(world, runState, draft, climbers)
+    }
+
+    @Test
+    fun botDraftAutoResolvesWithoutPausing() {
+        val h = buildDraftWorld(BotController())
+        val bot = h.climbers.first()
+
+        h.runState.score = Draft.OFFER_INTERVAL
+        h.world.update(DT)
+
+        assertTrue(with(h.world) { bot[Augments].owned }.isNotEmpty()) {
+            "a bot grabs an augment from its offer"
+        }
+        assertTrue(with(h.world) { bot.getOrNull(DraftOffer) } == null) {
+            "the bot's offer resolves the same tick"
+        }
+        assertFalse(h.runState.paused) { "no human offer -> the run never pauses" }
+        assertTrue(h.draft.nextOfferScore > Draft.OFFER_INTERVAL)
+        h.world.dispose()
+    }
+
+    @Test
+    fun humanDraftPausesUntilResolved() {
+        val h = buildDraftWorld(HumanController())
+        val human = h.climbers.first()
+
+        h.runState.score = Draft.OFFER_INTERVAL
+        h.world.update(DT)
+
+        assertTrue(with(h.world) { human.getOrNull(DraftOffer) } != null) {
+            "a human keeps its offer until it picks"
+        }
+        assertTrue(h.runState.paused) { "an open human offer pauses the run" }
+        assertEquals(human, h.draft.currentHuman)
+
+        // Resolve as the screen would on a skip: drop the offer.
+        with(h.world) { human.configure { it -= DraftOffer } }
+        h.world.update(DT)
+
+        assertFalse(h.runState.paused) { "the run resumes once no human offer remains" }
+        assertEquals(null, h.draft.currentHuman)
+        h.world.dispose()
+    }
+
+    @Test
+    fun draftOffersEveryLivingClimber() {
+        val h = buildDraftWorld(HumanController(), BotController())
+        val human = h.climbers[0]
+        val bot = h.climbers[1]
+
+        h.runState.score = Draft.OFFER_INTERVAL
+        h.world.update(DT)
+
+        assertTrue(with(h.world) { bot[Augments].owned }.isNotEmpty()) {
+            "the bot was offered and auto-picked"
+        }
+        assertTrue(with(h.world) { bot.getOrNull(DraftOffer) } == null)
+        assertTrue(with(h.world) { human.getOrNull(DraftOffer) } != null) {
+            "the human was also offered and is still choosing"
+        }
+        assertTrue(h.runState.paused)
+        h.world.dispose()
+    }
+
+    @Test
+    fun draftSkippedWhenClimberOwnsEverything() {
+        val h = buildDraftWorld(HumanController())
+        val human = h.climbers.first()
+        with(h.world) { human[Augments].owned.addAll(augmentCatalog) }
+
+        h.runState.score = Draft.OFFER_INTERVAL
+        h.world.update(DT)
+
+        assertTrue(with(h.world) { human.getOrNull(DraftOffer) } == null) {
+            "no offer when the catalog is exhausted"
+        }
+        assertFalse(h.runState.paused)
+        assertTrue(h.draft.nextOfferScore > Draft.OFFER_INTERVAL) {
+            "the threshold still advances so it doesn't retry every tick"
+        }
+        h.world.dispose()
     }
 
     companion object {

@@ -25,7 +25,7 @@ class DeathSystem(
     }
 
     override fun onTick() {
-        if (runState.dead) return
+        if (runState.dead || runState.paused) return
         super.onTick() // mark fallen/hit climbers Dead, dropping them from family
         if (family.numEntities == 0) {
             runState.dead = true

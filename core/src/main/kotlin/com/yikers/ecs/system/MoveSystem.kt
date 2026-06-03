@@ -16,7 +16,7 @@ class MoveSystem(
     private val runState: RunState = inject(),
 ) : IteratingSystem(family { all(Physics, Intent).none(Dead) }) {
     override fun onTickEntity(entity: Entity) {
-        if (runState.dead) return
+        if (runState.dead || runState.paused) return
         val body = entity[Physics].body
         body.setLinearVelocity(entity[Intent].vx, body.linearVelocity.y)
     }

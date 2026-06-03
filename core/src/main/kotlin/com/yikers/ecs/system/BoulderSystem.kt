@@ -14,7 +14,7 @@ class BoulderSystem(
     private val runState: RunState = inject(),
 ) : IteratingSystem(family { all(BoulderC, Physics) }) {
     override fun onTickEntity(entity: Entity) {
-        if (runState.dead) return
+        if (runState.dead || runState.paused) return
         val body = entity[Physics].body
         val r = GameConfig.BOULDER_RADIUS
         val leftBound = GameConfig.WALL_THICKNESS + r

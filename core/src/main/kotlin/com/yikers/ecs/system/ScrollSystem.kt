@@ -21,7 +21,7 @@ class ScrollSystem(
     private val climbers = world.family { all(Player, Physics, FootSensor).none(Dead) }
 
     override fun onTick() {
-        if (runState.dead) return
+        if (runState.dead || runState.paused) return
         if (!runState.startCamera) {
             if (!anyClimberOnPlatform()) return
             runState.startCamera = true

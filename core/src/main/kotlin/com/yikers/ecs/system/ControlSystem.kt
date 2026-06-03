@@ -36,7 +36,7 @@ class ControlSystem(
     private val gravityPxS2 = abs(GameConfig.GRAVITY * cfg.gravityScale)
 
     override fun onTickEntity(entity: Entity) {
-        if (runState.dead) return
+        if (runState.dead || runState.paused) return
         val body = entity[Physics].body
         val grounded = entity[FootSensor].contacts > 0
 

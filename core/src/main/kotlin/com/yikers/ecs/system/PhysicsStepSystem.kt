@@ -16,7 +16,7 @@ class PhysicsStepSystem(
     private var acc = 0f
 
     override fun onTick() {
-        if (runState.dead) return
+        if (runState.dead || runState.paused) return
         // Clamp frame time before accumulating. The first play frame (Box2D
         // native + ShapeRenderer shader load lazily on menu->play) can be huge,
         // esp. on iOS cold start; unclamped that's hundreds of 1/300s steps in

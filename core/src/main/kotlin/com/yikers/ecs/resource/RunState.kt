@@ -8,6 +8,10 @@ class RunState {
     var dead = false
     var startCamera = false
 
+    // Run frozen for a modal overlay (the augment draft). Sim-advancing systems
+    // early-return while set; RenderSystem still draws, so the scene reads paused.
+    var paused = false
+
     // Rising kill-line = the world Y of the screen's BOTTOM edge (meters). The
     // scroll system advances it; the camera shows [scrollY, scrollY + viewHeight],
     // so the bottom is anchored to the kill-line and taller screens see more world

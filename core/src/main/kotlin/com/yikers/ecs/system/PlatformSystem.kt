@@ -36,7 +36,7 @@ class PlatformSystem(
     private val livePlayers = family { all(Player, Physics).none(Dead) }
 
     override fun onTick() {
-        if (runState.dead) return
+        if (runState.dead || runState.paused) return
         super.onTick()
     }
 
