@@ -42,6 +42,33 @@ own; the run ends once all are dead.
 ./gradlew build
 ```
 
+## Android
+
+Tilt the phone left/right to slide, tap to jump (same shared controls as iOS).
+
+Build an installable debug APK (signed with the local debug key):
+
+```bash
+./gradlew :android:assembleDebug
+```
+
+Output: `android/build/outputs/apk/debug/android-debug.apk`. Copy it to your
+phone and open it — the first time, enable "install unknown apps" for the app
+you opened it with (browser/file manager).
+
+The `:android` module is included only when `local.properties` declares
+`sdk.dir` — Android Studio writes it on import, or create it once with
+`echo "sdk.dir=$ANDROID_HOME" > local.properties` (needs the Android SDK:
+platform 35, build-tools 35.0.0). Gating on `sdk.dir` keeps the desktop, iOS,
+and headless-test builds free of Android tooling.
+
+### APK from CI
+
+The **Android APK** workflow (`.github/workflows/android-apk.yml`) builds the
+debug APK on every push and on manual dispatch, uploading it as the
+`yikers-debug-apk` artifact — download it from the run's Artifacts section, no
+local SDK required.
+
 ## Layout
 
 - `core/` — game logic, no backend.
@@ -78,3 +105,4 @@ run modifiers, varied enemies, characters unlocked at checkpoints.
 - Fleks 2.14 (ECS), ktx 1.13.1-rc1
 - Kotlin 2.3.21
 - JDK 21, Gradle 8.14.3
+- Android Gradle Plugin 8.7.3 (android module)
