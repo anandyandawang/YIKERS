@@ -41,7 +41,7 @@ class DraftSystem(
             }
             resolveBots()
             draft.currentHuman = firstPendingHuman()
-            runState.paused = draft.currentHuman != null
+            runState.paused = draft.isAwaitingHuman
         }
     }
 

@@ -166,7 +166,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         world.update(delta)
         drawHud()
 
-        if (runState.paused) {
+        if (draft.isAwaitingHuman) {
             drawDraft()
             handleDraftInput()
         } else if (runState.dead) {

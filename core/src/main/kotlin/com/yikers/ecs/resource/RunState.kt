@@ -8,8 +8,10 @@ class RunState {
     var dead = false
     var startCamera = false
 
-    // Run frozen for a modal overlay (the augment draft). Sim-advancing systems
-    // early-return while set; RenderSystem still draws, so the scene reads paused.
+    // Generic sim-freeze effect: sim-advancing systems early-return while set, while
+    // RenderSystem still draws so the scene reads frozen. DraftSystem raises it while
+    // a human is mid-draft (see Draft.isAwaitingHuman); a later pause source could
+    // raise it too -- systems freeze without caring why.
     var paused = false
 
     // Rising kill-line = the world Y of the screen's BOTTOM edge (meters). The

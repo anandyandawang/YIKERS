@@ -14,6 +14,10 @@ class Draft {
     // or null when no human has an open offer. Set by DraftSystem each tick.
     var currentHuman: Entity? = null
 
+    // The cause behind the pause: a human still owes a pick, so the screen shows the
+    // draft UI and the run stays frozen (RunState.paused is the effect) until done.
+    val isAwaitingHuman: Boolean get() = currentHuman != null
+
     companion object {
         const val OFFER_INTERVAL = 50  // score between draft rounds
         const val OFFER_SIZE = 3       // cards offered to each climber
