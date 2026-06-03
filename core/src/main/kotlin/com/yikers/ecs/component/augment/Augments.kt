@@ -1,4 +1,4 @@
-package com.yikers.ecs.component
+package com.yikers.ecs.component.augment
 
 import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType

@@ -9,14 +9,14 @@ import com.yikers.config.RunConfig
 import com.yikers.control.BotController
 import com.yikers.control.BotView
 import com.yikers.control.ControlContext
-import com.yikers.ecs.component.Augments
 import com.yikers.ecs.component.BoulderC
-import com.yikers.ecs.component.airJumpBudget
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.Dead
 import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
+import com.yikers.ecs.component.augment.Augments
+import com.yikers.ecs.component.augment.GrantsAirJumps
 import com.yikers.ecs.resource.RunState
 import kotlin.math.abs
 
@@ -59,9 +59,14 @@ class ControlSystem(
         if (move.jump) {
             if (grounded) {
                 body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
-            } else if (augments.airJumpsUsed < augments.airJumpBudget) {
-                body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
-                augments.airJumpsUsed++
+            } else {
+                // air jump: spend one if owned augments grant any (e.g. DoubleJump)
+                val airJumps = augments.owned.filterIsInstance<GrantsAirJumps>()
+                    .sumOf { it.extraAirJumps }
+                if (augments.airJumpsUsed < airJumps) {
+                    body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
+                    augments.airJumpsUsed++
+                }
             }
         }
     }

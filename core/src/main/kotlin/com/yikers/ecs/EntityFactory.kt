@@ -10,7 +10,6 @@ import com.github.quillraven.fleks.World
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
 import com.yikers.control.Controller
-import com.yikers.ecs.component.Augments
 import com.yikers.ecs.component.BoulderC
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.FootSensor
@@ -21,6 +20,7 @@ import com.yikers.ecs.component.Player
 import com.yikers.ecs.component.RenderShape
 import com.yikers.ecs.component.ShapeKind
 import com.yikers.ecs.component.Transform
+import com.yikers.ecs.component.augment.Augments
 import com.yikers.ecs.resource.Arena
 import com.yikers.ecs.resource.Refs
 import ktx.box2d.body
