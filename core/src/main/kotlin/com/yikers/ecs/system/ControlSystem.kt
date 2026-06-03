@@ -13,22 +13,22 @@ import com.yikers.ecs.component.BoulderC
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.Dead
 import com.yikers.ecs.component.FootSensor
+import com.yikers.ecs.component.Intent
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
-import com.yikers.ecs.component.augment.Augments
-import com.yikers.ecs.component.augment.GrantsAirJumps
 import com.yikers.ecs.resource.RunState
 import kotlin.math.abs
 
-// Per-climber control: each entity's Controller decides its move this frame.
-// Humans read input, bots read world state. Original feel preserved: held arrow
-// = horizontal velocity (keeps x-momentum on jump), jump gated on foot contact.
-// ctx carries only the climber's own state; a bot's world percept goes into its
-// BotView, so the shared ControlContext stays human-clean.
+// Per-climber control: each entity's Controller decides its move this frame; we
+// record it as Intent and apply the base horizontal velocity. Mechanic systems
+// (JumpSystem, ...) read Intent downstream, so this stays free of per-augment
+// branches. Humans read input, bots read world state. Original feel preserved:
+// held arrow = horizontal velocity (keeps x-momentum on jump). ctx carries only
+// the climber's own state; a bot's world percept goes into its BotView.
 class ControlSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
-) : IteratingSystem(family { all(Controlled, Physics, FootSensor).none(Dead) }) {
+) : IteratingSystem(family { all(Controlled, Physics, FootSensor, Intent).none(Dead) }) {
     private val platforms = family { all(PlatformC) }
     private val boulders = family { all(BoulderC, Physics) }
     private val ctx = ControlContext()
@@ -39,8 +39,6 @@ class ControlSystem(
         if (runState.dead) return
         val body = entity[Physics].body
         val grounded = entity[FootSensor].contacts > 0
-        val augments = entity[Augments]
-        if (grounded) augments.airJumpsUsed = 0
 
         ctx.playerX = body.position.x
         ctx.playerY = body.position.y
@@ -56,19 +54,7 @@ class ControlSystem(
 
         val move = controller.decide(ctx)
         body.setLinearVelocity(move.vx, body.linearVelocity.y)
-        if (move.jump) {
-            if (grounded) {
-                body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
-            } else {
-                // air jump: spend one if owned augments grant any (e.g. DoubleJump)
-                val airJumps = augments.owned.filterIsInstance<GrantsAirJumps>()
-                    .sumOf { it.extraAirJumps }
-                if (augments.airJumpsUsed < airJumps) {
-                    body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
-                    augments.airJumpsUsed++
-                }
-            }
-        }
+        entity[Intent].jump = move.jump
     }
 
     // Project the world into the bot's percept: the two lowest holes above it,

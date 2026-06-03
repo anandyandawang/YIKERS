@@ -1,0 +1,46 @@
+package com.yikers.ecs.system
+
+import com.github.quillraven.fleks.Entity
+import com.github.quillraven.fleks.IteratingSystem
+import com.github.quillraven.fleks.World.Companion.family
+import com.github.quillraven.fleks.World.Companion.inject
+import com.yikers.config.RunConfig
+import com.yikers.ecs.component.Controlled
+import com.yikers.ecs.component.Dead
+import com.yikers.ecs.component.FootSensor
+import com.yikers.ecs.component.Intent
+import com.yikers.ecs.component.Physics
+import com.yikers.ecs.component.augment.Augments
+import com.yikers.ecs.component.augment.GrantsAirJumps
+import com.yikers.ecs.resource.RunState
+
+// Owns the whole jump mechanic: ground jump + air jumps. Reads the per-frame
+// Intent (from ControlSystem) and the climber's Augments. Air jumps are a
+// parameter of jumping (same vy, different gate), so they live here, not in a
+// separate system. Jump augments contribute via the GrantsAirJumps trait --
+// adding one (e.g. a higher-tier TripleJump) needs no change here.
+class JumpSystem(
+    private val cfg: RunConfig = inject(),
+    private val runState: RunState = inject(),
+) : IteratingSystem(family { all(Controlled, Physics, FootSensor, Intent, Augments).none(Dead) }) {
+    override fun onTickEntity(entity: Entity) {
+        if (runState.dead) return
+        val body = entity[Physics].body
+        val grounded = entity[FootSensor].contacts > 0
+        val augments = entity[Augments]
+        if (grounded) augments.airJumpsUsed = 0
+
+        if (!entity[Intent].jump) return
+        if (grounded) {
+            body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
+        } else {
+            // air jump: spend one if owned augments grant any (e.g. DoubleJump)
+            val airJumps = augments.owned.filterIsInstance<GrantsAirJumps>()
+                .sumOf { it.extraAirJumps }
+            if (augments.airJumpsUsed < airJumps) {
+                body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
+                augments.airJumpsUsed++
+            }
+        }
+    }
+}
