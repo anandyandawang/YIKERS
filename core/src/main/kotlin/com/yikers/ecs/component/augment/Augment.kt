@@ -7,11 +7,15 @@ package com.yikers.ecs.component.augment
 //
 // Rule: an augment is pure DATA (the traits it implements + their params). The
 // mechanic that honors a capability lives in a system (or the contact listener)
-// and queries owned.filterIsInstance<Trait>(); no system names a concrete
-// augment, and augment files never touch the engine.
+// and queries augments.granting<Trait>(); no system names a concrete augment, and
+// augment files never touch the engine.
 sealed interface Augment
 
-// Grants extra mid-air jumps. ControlSystem sums extraAirJumps over owned.
+// Grants extra mid-air jumps. JumpSystem sums extraAirJumps over the owned ones.
 interface GrantsAirJumps {
     val extraAirJumps: Int
 }
+
+// Owned augments implementing capability trait T. Lets a mechanic system pull
+// just the augments it cares about, e.g. augments.granting<GrantsAirJumps>().
+inline fun <reified T> Augments.granting(): List<T> = owned.filterIsInstance<T>()

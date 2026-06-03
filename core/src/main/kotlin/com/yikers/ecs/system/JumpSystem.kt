@@ -13,6 +13,7 @@ import com.yikers.ecs.component.JumpState
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.augment.Augments
 import com.yikers.ecs.component.augment.GrantsAirJumps
+import com.yikers.ecs.component.augment.granting
 import com.yikers.ecs.resource.RunState
 
 // Owns the whole jump mechanic: ground jump + air jumps. Reads the per-frame
@@ -36,8 +37,7 @@ class JumpSystem(
             body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
         } else {
             // air jump: spend one if owned augments grant any (e.g. DoubleJump)
-            val airJumps = entity[Augments].owned.filterIsInstance<GrantsAirJumps>()
-                .sumOf { it.extraAirJumps }
+            val airJumps = entity[Augments].granting<GrantsAirJumps>().sumOf { it.extraAirJumps }
             if (jumpState.airJumpsUsed < airJumps) {
                 body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
                 jumpState.airJumpsUsed++
