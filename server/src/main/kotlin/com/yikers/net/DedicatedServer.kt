@@ -7,8 +7,10 @@ import com.yikers.net.wire.Rejected
 import com.yikers.net.wire.Snapshot
 import com.yikers.net.wire.Welcome
 import com.yikers.net.wire.Wire
+import com.yikers.sim.GameInstance
 import java.io.DataInputStream
 import java.io.DataOutputStream
+import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -22,12 +24,16 @@ class DedicatedServer(
     tcpPort: Int,
     private val cfg: SessionConfig,
     private val maxPlayers: Int = DEFAULT_MAX_PLAYERS,
+    // false => loopback-only, no LAN advertise.
+    val discoverable: Boolean = true,
 ) {
-    private val host = LocalHost()
-    private val room = host.open(cfg)
-    private val instance = host.instance(room)
+    // Single room: every client shares this one world.
+    private val instance = GameInstance(cfg)
 
-    private val serverSocket = ServerSocket(tcpPort) // port 0 => OS-assigned ephemeral
+    // Private: loopback only. IPv4 127.0.0.1 to match the client dial.
+    private val serverSocket =
+        if (discoverable) ServerSocket(tcpPort)
+        else ServerSocket(tcpPort, BACKLOG, InetAddress.getByName("127.0.0.1"))
 
     // Guarded by `conns` itself for iteration.
     private val conns = ArrayList<ClientConn>()
@@ -55,12 +61,15 @@ class DedicatedServer(
         running = true
         ticker = thread(name = "yikers-server-tick", isDaemon = true) { runTickLoop() }
         acceptor = thread(name = "yikers-server-accept", isDaemon = true) { runAcceptLoop() }
-        responder = DiscoveryResponder(
-            name = name,
-            tcpPort = port,
-            maxPlayers = maxPlayers,
-            players = { playerCount },
-        ).also { it.start() }
+        // Private stays off the LAN: no discovery.
+        if (discoverable) {
+            responder = DiscoveryResponder(
+                name = name,
+                tcpPort = port,
+                maxPlayers = maxPlayers,
+                players = { playerCount },
+            ).also { it.start() }
+        }
     }
 
     private fun runAcceptLoop() {
@@ -140,12 +149,13 @@ class DedicatedServer(
         // serverSocket.close() wakes accept(); wait for both workers before teardown.
         acceptor?.let { runCatching { it.join(500) } }
         ticker?.let { runCatching { it.join(500) } }
-        host.close(room)
+        instance.close()
     }
 
     companion object {
         const val TICK_HZ = 60
         const val DT = 1f / TICK_HZ
         const val DEFAULT_MAX_PLAYERS = 8
+        const val BACKLOG = 50
     }
 }

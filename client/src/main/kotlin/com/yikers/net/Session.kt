@@ -1,14 +1,7 @@
 package com.yikers.net
 
-// Routes PlayScreen to the local sim or a remote LAN server; the lobby stashes the
-// chosen target here instead of threading it through constructors.
+// LAN target + this client's in-process server (solo or host).
 object Session {
-    enum class Mode { LOCAL, NETWORK }
-
-    @Volatile
-    var mode: Mode = Mode.LOCAL
-        private set
-
     @Volatile
     var host: String = "127.0.0.1"
         private set
@@ -22,12 +15,7 @@ object Session {
     var hostedServer: DedicatedServer? = null
         private set
 
-    fun local() {
-        mode = Mode.LOCAL
-    }
-
     fun network(host: String, port: Int) {
-        mode = Mode.NETWORK
         this.host = host
         this.port = port
     }

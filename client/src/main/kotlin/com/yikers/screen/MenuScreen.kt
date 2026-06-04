@@ -12,7 +12,10 @@ import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.yikers.YikersGame
 import com.yikers.config.GameConfig
 import com.yikers.config.Prefs
+import com.yikers.control.BootConfig
+import com.yikers.net.DedicatedServer
 import com.yikers.net.Session
+import com.yikers.net.SessionConfig
 import ktx.app.KtxScreen
 
 class MenuScreen(private val game: YikersGame) : KtxScreen {
@@ -24,7 +27,8 @@ class MenuScreen(private val game: YikersGame) : KtxScreen {
     private val multiBtn = Rectangle()
 
     override fun show() {
-        Session.local() // reset routing so the next Single Player click goes local
+        // Menu return stops a solo server; an MP host survives.
+        Session.hostedServer?.let { if (!it.discoverable) Session.shutdownHost() }
     }
 
     override fun render(delta: Float) {
@@ -80,7 +84,16 @@ class MenuScreen(private val game: YikersGame) : KtxScreen {
     }
 
     private fun startSinglePlayer() {
-        Session.local()
+        // Solo = boot a private server + join it over loopback.
+        val cfg = SessionConfig(seed = BootConfig.seed, previousHighScore = Prefs.highScore)
+        val server = runCatching { DedicatedServer("solo", 0, cfg, discoverable = false) }
+            .getOrElse {
+                Gdx.app.error("YIKERS", "solo server boot failed", it)
+                return
+            }
+        server.start()
+        Session.setHosted(server)
+        Session.network("127.0.0.1", server.port)
         game.setScreen<PlayScreen>()
     }
 
