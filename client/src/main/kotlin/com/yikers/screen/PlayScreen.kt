@@ -64,7 +64,6 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
             humans = Roster.humans,
             bots = Roster.bots,
             seed = BootConfig.seed,
-            viewHeight = GameConfig.HEIGHT,
             previousHighScore = Prefs.highScore,
         )
         speed = cfg.runConfig.horizontalSpeed
@@ -82,13 +81,14 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         val session = session ?: return
         ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
         viewport.apply()
-        session.setViewHeight(viewport.worldHeight) // device aspect -> visible world height
 
         humanInputs.forEach { session.submitInput(it.poll(speed)) }
         session.step(delta)
         val snap = session.snapshot()
 
-        renderer.render(snap)
+        // Center on the kill-line using OUR local view height — never sent to the
+        // server, so two clients on different aspects each frame their own view.
+        renderer.render(snap, viewport.worldHeight)
         drawHud(snap)
 
         if (snap.dead) handleGameOver(delta, snap)

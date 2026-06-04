@@ -24,5 +24,4 @@ data class WorldSnapshot(
     val dead: Boolean,
     val scrollY: Float,        // kill-line = camera bottom edge
     val highScore: Int,
-    val viewHeight: Float,
 )

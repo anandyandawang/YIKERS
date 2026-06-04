@@ -43,7 +43,6 @@ import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 class GameInstance(private val cfg: SessionConfig) {
     private val runState = RunState().apply {
         highScore = cfg.previousHighScore
-        viewHeight = cfg.viewHeight
     }
     private val physicsWorld: PhysicsWorld =
         createWorld(gravity = vec2(0f, GameConfig.GRAVITY * cfg.runConfig.gravityScale))
@@ -128,11 +127,6 @@ class GameInstance(private val cfg: SessionConfig) {
         relays.getOrNull(cmd.playerId)?.submit(cmd)
     }
 
-    // Client viewport height -> shared world bounds (WallFollowSystem reads it).
-    fun setViewHeight(height: Float) {
-        runState.viewHeight = height
-    }
-
     fun tick(deltaTime: Float) {
         world.update(deltaTime)
     }
@@ -164,7 +158,6 @@ class GameInstance(private val cfg: SessionConfig) {
             dead = runState.dead,
             scrollY = runState.scrollY,
             highScore = runState.highScore,
-            viewHeight = runState.viewHeight,
         )
     }
 
