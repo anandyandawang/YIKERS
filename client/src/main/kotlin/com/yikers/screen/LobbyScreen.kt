@@ -152,7 +152,7 @@ class LobbyScreen(private val game: YikersGame) : KtxScreen {
     // Start an in-process server (humans=2) and immediately join it as player 0. Other
     // clients find it via discovery, or direct-connect to 127.0.0.1 on the same box.
     private fun startHost() {
-        val cfg = SessionConfig(humans = 2, bots = 0)
+        val cfg = SessionConfig()
         val name = "Host @ ${hostName()}"
         // Prefer the well-known port so a second local client can direct-connect even
         // if UDP discovery is blocked; fall back to an ephemeral port if it's taken.

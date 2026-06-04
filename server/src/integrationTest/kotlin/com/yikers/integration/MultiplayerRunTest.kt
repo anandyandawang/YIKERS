@@ -2,7 +2,7 @@ package com.yikers.integration
 
 import com.github.quillraven.fleks.Entity
 import com.yikers.config.GameConfig
-import com.yikers.control.BotController
+import com.yikers.support.AutopilotController
 import com.yikers.ecs.component.Physics
 import com.yikers.support.HeadlessGdx
 import com.yikers.support.SimHarness
@@ -20,7 +20,7 @@ class MultiplayerRunTest {
 
     @Test
     fun runEndsOnlyWhenAllClimbersDead() {
-        buildSim(controllers = listOf(BotController(), BotController()), seed = SEED).use { h ->
+        buildSim(controllers = listOf(AutopilotController(), AutopilotController()), seed = SEED).use { h ->
             h.world.step(1) // settle one tick; both climbers alive
             assertFalse(h.runState.dead) { "run starts with both climbers alive" }
 

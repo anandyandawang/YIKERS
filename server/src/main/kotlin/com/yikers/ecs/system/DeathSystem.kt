@@ -26,7 +26,9 @@ class DeathSystem(
     override fun onTick() {
         if (runState.dead) return
         super.onTick() // mark fallen/hit climbers Dead, dropping them from family
-        if (family.numEntities == 0) {
+        // Only a run that actually started can end: an empty family before anyone
+        // has joined is "waiting for players", not "everyone died".
+        if (runState.started && family.numEntities == 0) {
             runState.dead = true
             // In-run high-water mark only; persistence (Prefs) is a client concern
             // now — the client writes Prefs when it sees `dead` in a snapshot.

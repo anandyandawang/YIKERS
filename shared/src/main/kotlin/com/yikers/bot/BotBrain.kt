@@ -1,70 +1,47 @@
-package com.yikers.control
+package com.yikers.bot
 
 import com.yikers.config.GameConfig
 import kotlin.math.abs
 import kotlin.math.sign
 import kotlin.math.sqrt
 
-// The bot's "eyes": the slice of world state the ControlSystem projects for the
-// bot each tick — its percept, the bot-facing analog of what RenderSystem draws
-// for a human. Flat struct on purpose (one consumer); no Perceiver/Renderer
-// abstraction until there are several bot percepts, noisy-vision difficulty,
-// replay, or RL training. Boulder arrays are sized once to the pool and reused.
-class BotView {
-    var playerVy = 0f            // m/s, signed (up = +); the bot's own climb/fall
-    var targetHoleCenterX = 0f   // m, center of the hole in the next platform up
-    var targetHoleWidth = 0f     // m; 0 => no platform above (just hop)
-    var targetPlatformY = 0f     // m, Y of that platform
-    var nextHoleCenterX = 0f     // m, hole one platform further up (lookahead)
-    var nextHoleWidth = 0f       // m; 0 => unknown
-    // The slab just below the ball — the surface it must land on. 0 width => the
-    // ground (solid everywhere), so there is no hole to fall back through.
-    var supportHoleCenterX = 0f  // m
-    var supportHoleWidth = 0f    // m; 0 => ground / no hole below
-    var distToKillLine = 0f      // m, playerY - killLine; small => near death
-    var gravityPxS2 = 0f         // m/s^2, positive magnitude
-    var boulderCount = 0
-    val boulderX = FloatArray(GameConfig.NUM_PLATFORMS)   // m, center
-    val boulderY = FloatArray(GameConfig.NUM_PLATFORMS)   // m, center
-    val boulderVx = FloatArray(GameConfig.NUM_PLATFORMS)  // m/s, signed
-    val boulderVy = FloatArray(GameConfig.NUM_PLATFORMS)  // m/s, signed
-}
-
-// Autopilot. Climbs by hopping up through each platform's gap and landing on the
-// slab's solid top (not falling straight back through the hole), then repeats —
-// also boulder-aware: dodges rolling boulders, won't jump into a hole a boulder
-// is about to occupy, pre-aims at the hole after next, and climbs flat-out when
-// the rising floor gets close. Reads self-state from ctx, the world from view.
-class BotController : Controller {
-    val view = BotView()
-
-    override fun decide(ctx: ControlContext): Move {
-        val v = view
+// Autopilot decision logic. Climbs by hopping up through each platform's gap and
+// landing on the slab's solid top (not falling straight back through the hole),
+// then repeats — also boulder-aware: dodges rolling boulders, won't jump into a
+// hole a boulder is about to occupy, pre-aims at the hole after next, and climbs
+// flat-out when the rising floor gets close. Reads self-state from `self`, the
+// world from `view`. Pure (no engine deps) so it runs anywhere a client runs.
+//
+// This is the SAME algorithm the server used to run for bots; it just moved
+// client-side. A bot is now a client (BotClient) that feeds this percept from
+// snapshots and ships the result as an InputCommand.
+class BotBrain {
+    fun decide(self: BotSelf, v: BotView): BotMove {
         val deadzone = GameConfig.BALL_RADIUS * DEADZONE_FRAC
-        val dx = v.targetHoleCenterX - ctx.playerX
+        val dx = v.targetHoleCenterX - self.x
         val aligned = v.targetHoleWidth <= 0f ||
             abs(dx) <= maxOf(deadzone, v.targetHoleWidth * ALIGN_FRAC)
 
         // Airborne: pure climbing control — rise through the gap, but once past
         // the apex steer onto solid so we land instead of dropping back through.
-        if (!ctx.grounded) return Move(airborneSteer(ctx, v, deadzone), jump = false)
+        if (!self.grounded) return BotMove(airborneSteer(self, v, deadzone), jump = false)
 
-        // Grounded. Jump arc math runs in meters (ctx/view all meters now).
-        val jumpPx = ctx.jumpVelocity
-        val jumpSafe = aligned && jumpIsSafe(ctx, v, jumpPx, v.gravityPxS2)
+        // Grounded. Jump arc math runs in meters.
+        val jumpPx = self.jumpVelocity
+        val jumpSafe = aligned && jumpIsSafe(self, v, jumpPx, v.gravityPxS2)
 
         // 1. Kill-line pressure: punch through the hole now, accept boulder risk.
         if (v.distToKillLine < PANIC_DIST_PX) {
-            return Move(steer(dx, deadzone, ctx.speed), jump = aligned)
+            return BotMove(steer(dx, deadzone, self.speed), jump = aligned)
         }
 
         // 2. Dodge the nearest boulder closing on our lane (still hop if safe).
-        val threatVx = dodgeVx(ctx, v)
-        if (threatVx != null) return Move(threatVx, jump = jumpSafe)
+        val threatVx = dodgeVx(self, v)
+        if (threatVx != null) return BotMove(threatVx, jump = jumpSafe)
 
         // 3. Climb: steer to the hole; when idle-aligned, pre-aim at the next one.
-        val vx = if (abs(dx) > deadzone) steer(dx, deadzone, ctx.speed) else driftVx(ctx, v, deadzone)
-        return Move(vx, jump = jumpSafe)
+        val vx = if (abs(dx) > deadzone) steer(dx, deadzone, self.speed) else driftVx(self, v, deadzone)
+        return BotMove(vx, jump = jumpSafe)
     }
 
     // Full-speed toward a target offset, stopping inside the deadzone.
@@ -81,15 +58,15 @@ class BotController : Controller {
     // to the nearest solid strip so we don't drop back through the hole we came
     // up. Deciding by reachable-apex (not by falling/rising) leaves the whole
     // apex dwell to slide onto solid, which a descending-only check misses.
-    private fun airborneSteer(ctx: ControlContext, v: BotView, deadzone: Float): Float {
+    private fun airborneSteer(self: BotSelf, v: BotView, deadzone: Float): Float {
         val goalX = v.targetHoleCenterX
         val g = v.gravityPxS2
-        val remainingRise = if (v.playerVy > 0f && g > 0f) v.playerVy * v.playerVy / (2f * g) else 0f
-        val apexY = ctx.playerY + remainingRise
+        val remainingRise = if (self.vy > 0f && g > 0f) self.vy * self.vy / (2f * g) else 0f
+        val apexY = self.y + remainingRise
         val canReachTarget = v.targetHoleWidth > 0f &&
             apexY >= v.targetPlatformY + GameConfig.PLATFORM_HEIGHT
         if (canReachTarget || v.supportHoleWidth <= 0f) {
-            return steer(goalX - ctx.playerX, deadzone, ctx.speed)
+            return steer(goalX - self.x, deadzone, self.speed)
         }
         val r = GameConfig.BALL_RADIUS
         val overHole = abs(goalX - v.supportHoleCenterX) < v.supportHoleWidth / 2f + r + LANDING_PAD
@@ -105,24 +82,24 @@ class BotController : Controller {
                 else -> goalX
             }.coerceIn(LEFT_BOUND_PX, RIGHT_BOUND_PX)
         }
-        return steer(landX - ctx.playerX, deadzone, ctx.speed)
+        return steer(landX - self.x, deadzone, self.speed)
     }
 
     // Aligned & grounded with no threat -> drift toward the hole-after-next so we
     // land already lined up, instead of dead-stopping in the deadzone.
-    private fun driftVx(ctx: ControlContext, v: BotView, deadzone: Float): Float {
+    private fun driftVx(self: BotSelf, v: BotView, deadzone: Float): Float {
         if (v.nextHoleWidth <= 0f) return 0f
-        return steer(v.nextHoleCenterX - ctx.playerX, deadzone, ctx.speed)
+        return steer(v.nextHoleCenterX - self.x, deadzone, self.speed)
     }
 
     // Nearest boulder on our lane that is closing within the reaction horizon ->
     // step away from it (flip if that side is against a wall). null = no threat.
-    private fun dodgeVx(ctx: ControlContext, v: BotView): Float? {
+    private fun dodgeVx(self: BotSelf, v: BotView): Float? {
         var bestTtc = Float.MAX_VALUE
         var bestVx = 0f
         for (i in 0 until v.boulderCount) {
-            if (abs(ctx.playerY - v.boulderY[i]) >= DANGER_BAND_PX) continue
-            val rx = v.boulderX[i] - ctx.playerX
+            if (abs(self.y - v.boulderY[i]) >= DANGER_BAND_PX) continue
+            val rx = v.boulderX[i] - self.x
             val bvx = v.boulderVx[i]
             if (rx * bvx >= 0f) continue                  // not moving toward us
             if (abs(rx) >= DANGER_RADIUS_PX * 3f) continue
@@ -135,16 +112,16 @@ class BotController : Controller {
         if (bestTtc == Float.MAX_VALUE) return null
         var dir = -sign(bestVx)                           // step opposite its travel
         if (dir == 0f) dir = 1f
-        if (dir < 0f && ctx.playerX - LEFT_BOUND_PX < DANGER_RADIUS_PX) dir = 1f
-        if (dir > 0f && RIGHT_BOUND_PX - ctx.playerX < DANGER_RADIUS_PX) dir = -1f
-        return dir * ctx.speed
+        if (dir < 0f && self.x - LEFT_BOUND_PX < DANGER_RADIUS_PX) dir = 1f
+        if (dir > 0f && RIGHT_BOUND_PX - self.x < DANGER_RADIUS_PX) dir = -1f
+        return dir * self.speed
     }
 
     // false if a boulder will sit in/over the target hole when we arrive, or
     // would intersect us during the ascent.
-    private fun jumpIsSafe(ctx: ControlContext, v: BotView, jumpPx: Float, g: Float): Boolean {
+    private fun jumpIsSafe(self: BotSelf, v: BotView, jumpPx: Float, g: Float): Boolean {
         if (v.boulderCount == 0 || g <= 0f) return true
-        val dh = (v.targetPlatformY - ctx.playerY).coerceAtLeast(0f)
+        val dh = (v.targetPlatformY - self.y).coerceAtLeast(0f)
         val disc = jumpPx * jumpPx - 2f * g * dh
         val arrivalT = if (disc <= 0f) jumpPx / g else (jumpPx - sqrt(disc)) / g  // first crossing, else apex
         if (arrivalT <= 0f) return true
@@ -159,10 +136,10 @@ class BotController : Controller {
             var s = 0.25f
             while (s <= 1.0001f) {
                 val t = s * arrivalT
-                val selfY = ctx.playerY + jumpPx * t - 0.5f * g * t * t
+                val selfY = self.y + jumpPx * t - 0.5f * g * t * t
                 val bx = projX(v.boulderX[i], v.boulderVx[i], t)
                 val by = v.boulderY[i] + v.boulderVy[i] * t - 0.5f * g * t * t
-                val ddx = ctx.playerX - bx
+                val ddx = self.x - bx
                 val ddy = selfY - by
                 if (ddx * ddx + ddy * ddy < DANGER_RADIUS_PX * DANGER_RADIUS_PX) return false
                 s += 0.25f

@@ -3,7 +3,7 @@ package com.yikers.integration
 import com.github.quillraven.fleks.configureWorld
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
-import com.yikers.control.BotController
+import com.yikers.control.RelayController
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
@@ -164,7 +164,7 @@ class PlatformBridgeTest {
 
             val factory = EntityFactory(world, pw, cfg, refs)
             // Over the solid-left half, just above the slab top, then let it fall.
-            val player = factory.spawnPlayer(x = 0.5f, y = 1.5f, controller = BotController())
+            val player = factory.spawnPlayer(x = 0.5f, y = 1.5f, controller = RelayController(0))
             refs.player = player
 
             pw.setContactListener(PlayContactListener(world))
