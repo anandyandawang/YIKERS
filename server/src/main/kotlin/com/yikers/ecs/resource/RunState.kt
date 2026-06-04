@@ -6,10 +6,8 @@ class RunState {
     var dead = false
     var startCamera = false
 
-    // Flips true once at least one player has joined + spawned. The roster is
-    // dynamic now (one player per client), so without this an empty world (no
-    // clients yet) would read as "all climbers dead" the instant DeathSystem runs.
-    // Run-end keys off this so a freshly-opened, still-empty room never ends.
+    // True once a player has spawned. Run-end keys off this so a still-empty room
+    // (dynamic roster, nobody joined yet) doesn't read as "everyone died".
     var started = false
 
     // Rising kill-line = the world Y of the screen's BOTTOM edge (meters). The scroll

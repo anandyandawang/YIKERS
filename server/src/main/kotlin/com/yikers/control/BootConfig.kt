@@ -2,28 +2,19 @@ package com.yikers.control
 
 import com.badlogic.gdx.math.MathUtils
 
-// Launch knobs read from system properties (preferred) or env vars at boot. There
-// is NO humans count: 1 client == 1 player, and you are always exactly one human.
-// `bots` is how many in-process bot clients to add to a run — pumped by the screen
-// in singleplayer, or by the hosted server when hosting a LAN game. Examples:
-//   YIKERS_BOTS=3        -> race 3 in-process bots
-//   -Dyikers.seed=42     -> reproducible platform/boulder layout
+// Launch knobs from system properties / env vars. No humans count (1 client == 1
+// player); `bots` = in-process bot clients to add to a run. yikers.bots, yikers.seed.
 object BootConfig {
-    // Seed parsed at launch, read by the client into SessionConfig so the embedded
-    // GameInstance reseeds deterministically. null = random layout.
-    var seed: Long? = null
+    var seed: Long? = null      // null = random layout
         private set
 
-    // In-process bot clients to spawn for a run. 0 = pure single-human play.
-    var bots: Int = 0
+    var bots: Int = 0           // in-process bots; 0 = solo human
         private set
 
     fun apply() {
         intOf("yikers.bots", "YIKERS_BOTS")?.let { bots = it.coerceAtLeast(0) }
         seed = longOf("yikers.seed", "YIKERS_SEED")
-        // Seed the global RNG too: harmless before the instance reseeds, and the
-        // seeded-layout integration test relies on apply() alone seeding it.
-        seed?.let { MathUtils.random.setSeed(it) }
+        seed?.let { MathUtils.random.setSeed(it) }   // seeded-layout test relies on this
     }
 
     private fun raw(prop: String, env: String): String? =

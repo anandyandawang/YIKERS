@@ -26,12 +26,9 @@ import com.yikers.net.WorldSnapshot
 import com.yikers.render.SnapshotRenderer
 import ktx.app.KtxScreen
 
-// Owns one run from the CLIENT side: opens a room on a host, joins one client per
-// participant, then each frame captures input -> submits it -> steps the run ->
-// renders the returned snapshot. A bot is just another client (BotClient) joined to
-// the same room: locally we launch humans + bots side by side; over the network we
-// are a single human client and bots (if any) live on the server. No Fleks/Box2D
-// here — the sim lives behind the GameSession seam.
+// Owns one run from the client side: open a room, join a client per participant,
+// then each frame pump every participant -> step the run -> render the snapshot.
+// Local: 1 human + any bots side by side. Network: just this human.
 class PlayScreen(private val game: YikersGame) : KtxScreen {
     private val camera = OrthographicCamera()
     // ExtendViewport: pin world WIDTH to full screen width (no side bars) and let
@@ -49,9 +46,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
 
     private var host: GameHost? = null
     private var room: RoomId? = null
-    // Every joined client as a Participant (session + agent) — humans and bots are
-    // the same type here, differing only by agent. The first one's session owns the
-    // clock (drives step()); the rest just submit input.
+    // Joined clients (human + bots, same type). The first owns the clock.
     private var participants: List<Participant> = emptyList()
     private var clock: GameSession? = null
     private var speed = 0f
@@ -97,9 +92,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         }
     }
 
-    // One human client; the server owns the clock. Read feel from the Welcome config
-    // and drive only our own slot. (Bots against a LAN server connect separately as
-    // their own socket clients — never spawned from here.)
+    // One human client; the server owns the clock + any bots. Feel from the Welcome.
     private fun joinNetwork(h: GameHost, r: RoomId, cfg: SessionConfig) {
         val s = h.join(r)
         speed = (s as? NetworkGameSession)?.config?.runConfig?.horizontalSpeed
@@ -108,10 +101,8 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         participants = listOf(Participant(s, HumanAgent(speed)))
     }
 
-    // Local run: exactly one human client, plus BootConfig.bots in-process bot
-    // clients on the same embedded room. The bots are pumped right here in the render
-    // loop (~1-tick lag), but the embedded server never knows they're bots — each is
-    // just a join() + a Participant whose agent happens to be a BotAgent.
+    // Local run: one human + BootConfig.bots in-process bots on the embedded room,
+    // all pumped in the render loop. The embedded server never knows they're bots.
     private fun joinLocal(h: GameHost, r: RoomId, cfg: SessionConfig) {
         speed = cfg.runConfig.horizontalSpeed
         val human = Participant(h.join(r), HumanAgent(speed))
@@ -125,9 +116,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
         viewport.apply()
 
-        // Every client (human or bot) decides + submits this frame the same way, then
-        // the clock owner advances the run.
-        participants.forEach { it.pump(delta) }
+        participants.forEach { it.pump(delta) }   // every client decides + submits
         clock.step(delta)
         val snap = clock.snapshot()
 
@@ -193,9 +182,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     override fun dispose() = teardown()
 
     private fun teardown() {
-        // Close every client first: for a network client this shuts the socket +
-        // reader thread; for local clients it drops their player from the room. Then
-        // drop the room on the host (disposes the embedded sim).
+        // Close clients (network: socket; local: drops the player), then the room.
         participants.forEach { it.close() }
         host?.let { h -> room?.let { h.close(it) } }
         host = null

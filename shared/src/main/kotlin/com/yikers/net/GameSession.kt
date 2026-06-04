@@ -5,9 +5,7 @@ package com.yikers.net
 // NetworkClient implements the same interface over a socket, leaving client code
 // untouched. The GameInstance behind it is never exposed to the client.
 interface GameSession {
-    // The player slot this client owns. Assigned at join (locally or by the server
-    // handshake); every InputCommand this client submits is stamped with it.
-    val playerId: Int
+    val playerId: Int   // the slot this client owns, assigned at join
 
     fun submitInput(cmd: InputCommand)
     fun step(deltaTime: Float)

@@ -15,14 +15,10 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.LockSupport
 import kotlin.concurrent.thread
 
-// The LAN server: wraps the embedded GameInstance and serves ONE room over a
-// socket. It owns the clock — a 60Hz tick thread drains queued client input, steps
-// the sim, snapshots once, and broadcasts to every client. An acceptor thread
-// handshakes new clients, assigning each a dynamic player slot (despawned on
-// disconnect); a UDP responder answers LAN discovery. It knows NOTHING about who or
-// what connects: a client is a socket that sends InputCommands and reads
-// WorldSnapshots — human or bot is meaningless here. Bots, when wanted, are launched
-// elsewhere (BotRunner) and connect over this same socket like anyone else.
+// The LAN server: wraps the embedded GameInstance and serves ONE room over a socket.
+// Owns the clock (60Hz tick thread: drain input, step, snapshot, broadcast); an
+// acceptor handshakes clients into dynamic slots; a UDP responder answers discovery.
+// Knows NOTHING about who connects — human or bot is meaningless here.
 class DedicatedServer(
     val name: String,
     tcpPort: Int,
@@ -43,9 +39,8 @@ class DedicatedServer(
     // thread, so all sim mutation stays single-threaded.
     private val inbound = ConcurrentLinkedQueue<InputCommand>()
 
-    // In-process clients pumped each tick on the authoritative thread. Opaque
-    // callbacks: the server never inspects what's behind them (human, bot, recorder)
-    // — it only ever sees the InputCommands they submit through their session.
+    // In-process clients pumped each tick on the authoritative thread. Opaque: the
+    // server never inspects them, only the InputCommands they submit.
     private val localPumps = java.util.concurrent.CopyOnWriteArrayList<(Float) -> Unit>()
 
     @Volatile
@@ -60,22 +55,18 @@ class DedicatedServer(
 
     val playerCount: Int get() = instance.players
 
-    // The most recent broadcast frame (immutable), published by the tick thread for
-    // safe cross-thread reads (monitoring / tests) — never touch the live world off
-    // the tick thread. Null until the first tick.
+    // Most recent broadcast frame, published by the tick thread for safe cross-thread
+    // reads (monitoring / tests). Null until the first tick.
     @Volatile
     var latestSnapshot: WorldSnapshot? = null
         private set
 
-    // An in-process client handle: its own player slot on this server, reached with
-    // NO socket. The caller wraps it (e.g. a Participant with some InputAgent) and
-    // registers its per-tick pump via addLocalPump. The server stays oblivious to
-    // what the client is — it only ever sees the InputCommands it submits.
+    // An in-process client handle (its own slot, no socket). The caller wraps it in a
+    // Participant and registers its pump via addLocalPump.
     fun localSession(): GameSession = LocalGameSession(instance, instance.addPlayer())
 
-    // Register a callback pumped once per tick on the authoritative thread, so its
-    // input lands in the very next step (~1 tick of lag, no socket round-trip). The
-    // server never inspects it.
+    // Pump a callback once per tick on the authoritative thread (~1-tick lag, no
+    // socket round-trip). The server never inspects it.
     fun addLocalPump(pump: (Float) -> Unit) {
         localPumps.add(pump)
     }
@@ -149,9 +140,7 @@ class DedicatedServer(
                 val cmd = inbound.poll() ?: break
                 instance.applyInput(cmd)
             }
-            // In-process clients decide + submit now, so their input lands this step
-            // (~1 tick of lag) instead of a socket round-trip's worth.
-            localPumps.forEach { it(DT) }
+            localPumps.forEach { it(DT) }   // in-process clients submit for this step
             instance.tick(DT)
             val snap = instance.snapshot()
             latestSnapshot = snap

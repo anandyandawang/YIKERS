@@ -87,10 +87,8 @@ class EntityFactory(
         val ballBody = pw.body {
             type = BodyDef.BodyType.DynamicBody
             position.set(x + r, y + r)
-            // Never sleep: a ball nudged by another ball can otherwise doze off
-            // mid-air (Box2D stops applying gravity to sleepers) and float there until
-            // something hits it. A relay sending vx=0 won't wake it, so the climber
-            // would be stuck. The foot body is already allowSleep=false for the same reason.
+            // Never sleep: a nudged ball can otherwise doze off mid-air (Box2D stops
+            // gravity for sleepers) and a vx=0 relay won't wake it -> stuck climber.
             allowSleep = false
             circle(radius = r) {
                 density = 500f

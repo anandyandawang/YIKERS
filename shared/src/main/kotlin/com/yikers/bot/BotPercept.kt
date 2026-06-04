@@ -2,40 +2,33 @@ package com.yikers.bot
 
 import com.yikers.config.GameConfig
 
-// What a bot reads about ITSELF (proprioception), rebuilt client-side from
-// snapshots. Mirrors the server's old ControlContext, but the bot no longer runs
-// on the server — it's an ordinary client, so it derives this from the wire.
+// What a bot reads about itself, rebuilt client-side from snapshots.
 class BotSelf {
-    var x = 0f             // m, ball center
-    var y = 0f             // m, ball center
-    var vy = 0f            // m/s, signed (up = +); the bot's own climb/fall
-    var grounded = false   // inferred: resting on a solid top with ~0 vertical speed
-    var speed = 0f         // m/s (horizontalSpeed)
-    var jumpVelocity = 0f  // m/s
+    var x = 0f
+    var y = 0f
+    var vy = 0f            // m/s, up = +
+    var grounded = false
+    var speed = 0f         // horizontalSpeed
+    var jumpVelocity = 0f
 }
 
-// The bot's "eyes": the slice of world state it steers off, the client-side analog
-// of the server's old BotView. Same fields (so the decision logic is unchanged);
-// only the filler moved from ECS projection to snapshot reconstruction. Boulder
-// arrays are sized once to the pool and reused.
+// The bot's percept: holes above, the support slab below, kill-line, boulders.
+// Same fields the old server-side BotView had. Boulder arrays sized to the pool.
 class BotView {
-    var targetHoleCenterX = 0f   // m, center of the hole in the next platform up
-    var targetHoleWidth = 0f     // m; 0 => no platform above (just hop)
-    var targetPlatformY = 0f     // m, Y of that platform
-    var nextHoleCenterX = 0f     // m, hole one platform further up (lookahead)
-    var nextHoleWidth = 0f       // m; 0 => unknown
-    // The slab just below the ball — the surface it must land on. 0 width => the
-    // ground (solid everywhere), so there is no hole to fall back through.
-    var supportHoleCenterX = 0f  // m
-    var supportHoleWidth = 0f    // m; 0 => ground / no hole below
-    var distToKillLine = 0f      // m, playerY - killLine; small => near death
-    var gravityPxS2 = 0f         // m/s^2, positive magnitude
+    var targetHoleCenterX = 0f
+    var targetHoleWidth = 0f     // 0 => no platform above
+    var targetPlatformY = 0f
+    var nextHoleCenterX = 0f
+    var nextHoleWidth = 0f
+    var supportHoleCenterX = 0f
+    var supportHoleWidth = 0f    // 0 => ground / no hole below
+    var distToKillLine = 0f      // playerY - killLine
+    var gravityPxS2 = 0f         // positive magnitude
     var boulderCount = 0
-    val boulderX = FloatArray(GameConfig.NUM_PLATFORMS)   // m, center
-    val boulderY = FloatArray(GameConfig.NUM_PLATFORMS)   // m, center
-    val boulderVx = FloatArray(GameConfig.NUM_PLATFORMS)  // m/s, signed
-    val boulderVy = FloatArray(GameConfig.NUM_PLATFORMS)  // m/s, signed
+    val boulderX = FloatArray(GameConfig.NUM_PLATFORMS)
+    val boulderY = FloatArray(GameConfig.NUM_PLATFORMS)
+    val boulderVx = FloatArray(GameConfig.NUM_PLATFORMS)
+    val boulderVy = FloatArray(GameConfig.NUM_PLATFORMS)
 }
 
-// The bot's intended action for one frame — packed into an InputCommand by BotClient.
 data class BotMove(val vx: Float, val jump: Boolean)

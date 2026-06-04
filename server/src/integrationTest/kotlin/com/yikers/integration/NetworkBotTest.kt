@@ -7,11 +7,9 @@ import com.yikers.support.HeadlessGdx
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// The server has NO bot concept. This proves a bot reaches it as an ordinary socket
-// client (BotRunner -> NetworkHost -> the wire) and DRIVES the shared world: boot a
-// real DedicatedServer with no bot code, point a BotRunner at its port, and watch
-// the published score climb. Score is read straight from the server's latest
-// snapshot — no extra observer client (a second idle ball would block the lone bot).
+// A bot reaches the bot-blind server as an ordinary socket client (BotRunner ->
+// NetworkHost -> wire) and climbs. Score read from latestSnapshot (no observer
+// client, which would block the lone bot).
 @HeadlessGdx
 class NetworkBotTest {
 

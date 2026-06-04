@@ -39,11 +39,9 @@ import ktx.box2d.createWorld
 import ktx.math.vec2
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
-// One authoritative game world: Box2D + Fleks + RNG, fully headless (no GL). The
-// roster is DYNAMIC: there are no players at open() time; each joining client
-// (human or bot, the instance can't tell) gets a slot via addPlayer() and a ball
-// is spawned for it. The platform/boulder layout is built up front so the seed
-// stays deterministic. A host runs many of these (one per room), each independent.
+// One authoritative game world: Box2D + Fleks + RNG, headless. Roster is dynamic:
+// each joining client (human or bot, the instance can't tell) gets a slot via
+// addPlayer(); the platform/boulder layout is built up front so the seed is stable.
 class GameInstance(private val cfg: SessionConfig) {
     private val runState = RunState().apply {
         highScore = cfg.previousHighScore
@@ -57,10 +55,9 @@ class GameInstance(private val cfg: SessionConfig) {
     private val platforms: Family
     private var tickCount = 0L
 
-    // Slot bookkeeping. Slots are reserved off the tick thread (the network accept
-    // thread needs one synchronously to answer the handshake), but the entity is
-    // spawned/despawned on the tick thread via pendingOps so Box2D is only ever
-    // mutated between steps. relays/entitiesBySlot are touched on the tick thread.
+    // Slots are reserved off the tick thread (accept thread needs one synchronously
+    // for the handshake); spawn/despawn run on the tick thread via pendingOps so
+    // Box2D is only mutated between steps.
     private val slotLock = Any()
     private val usedSlots = HashSet<Int>()
     private val relays = HashMap<Int, RelayController>()
@@ -81,8 +78,7 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(runState)
                 add(arena)
                 add(refs)
-                // NO camera / ShapeRenderer: the sim is headless; the client renders
-                // from snapshots.
+                // No camera / ShapeRenderer: headless; the client renders snapshots.
             }
             systems {
                 add(ControlSystem())
@@ -110,8 +106,7 @@ class GameInstance(private val cfg: SessionConfig) {
         physicsWorld.setContactListener(PlayContactListener(world))
     }
 
-    // Reserve the lowest free slot for a new client and queue its ball to spawn on
-    // the next tick. Safe to call from any thread (the network accept thread does).
+    // Reserve the lowest free slot; ball spawns next tick. Safe from any thread.
     fun addPlayer(): Int {
         val slot = synchronized(slotLock) {
             var s = 0
@@ -183,8 +178,7 @@ class GameInstance(private val cfg: SessionConfig) {
         synchronized(slotLock) { usedSlots.remove(slot) }
     }
 
-    // Extract renderable state for the client. Reads exactly the fields the old
-    // RenderSystem drew; arena (ground/walls) is redrawn client-side from GameConfig.
+    // Renderable state for the client; the arena is redrawn client-side from GameConfig.
     fun snapshot(): WorldSnapshot {
         val ents = ArrayList<EntitySnap>()
         val plats = ArrayList<PlatformSnap>()

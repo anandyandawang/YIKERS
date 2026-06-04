@@ -15,11 +15,9 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// GameInstance is the embedded server, driven through the LocalHost seam exactly
-// like a real client. These prove (a) a BOT CLIENT — an ordinary GameSession
-// reading snapshots and submitting InputCommand — climbs and scores, and (b) a
-// relayed human InputCommand moves that client's climber. The instance never knows
-// which client is a bot; both go through addPlayer() + applyInput().
+// Driven through the LocalHost seam like a real client: (a) a bot client (a
+// GameSession + BotAgent) climbs + scores, (b) a relayed human InputCommand moves
+// its climber. The instance never knows which client is a bot.
 @HeadlessGdx
 class GameInstanceTest {
 

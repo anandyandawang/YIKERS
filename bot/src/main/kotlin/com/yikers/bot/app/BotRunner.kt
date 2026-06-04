@@ -9,12 +9,9 @@ import com.yikers.net.RoomId
 import java.util.concurrent.locks.LockSupport
 import kotlin.concurrent.thread
 
-// Launches bot clients that connect to a server over the REAL socket and drive
-// themselves — the same path a human's client takes (NetworkHost -> NetworkGameSession).
-// The server has no idea these are bots: they handshake, read WorldSnapshots, and
-// submit InputCommands like anyone else. Each bot is a Participant(networkSession,
-// BotAgent); one daemon thread pumps them all at the sim tick rate (the server owns
-// the clock, so nothing is stepped here).
+// Connects N bot clients to a server over the real socket and drives them — the same
+// path a human client takes. One daemon thread pumps them at the sim tick rate (the
+// server owns the clock; nothing is stepped here).
 class BotRunner(
     private val host: String,
     private val port: Int,

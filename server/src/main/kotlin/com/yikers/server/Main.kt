@@ -9,13 +9,9 @@ import com.yikers.net.discovery.DEFAULT_TCP_PORT
 import java.net.InetAddress
 
 // Standalone LAN server: ./gradlew :server:run [-Dyikers.port=54000]
-//
-// Boots a headless libGDX app first (same trick the integration tests use) so the
-// Box2D native loads before GameInstance opens a world, then starts a DedicatedServer
-// and blocks. The roster is dynamic — clients join over the socket and get a slot
-// each. The server has NO bot concept: to add bots, run the separate bot launcher
-// (./gradlew :server:botRun) which connects them as ordinary clients. seed / port /
-// name come from sysprops or env: yikers.seed, yikers.port, yikers.name.
+// Boots a headless libGDX app first so the Box2D native loads, then runs a
+// DedicatedServer and blocks. No bot concept — add bots with ./gradlew :bot:run.
+// Knobs: yikers.seed, yikers.port, yikers.name.
 fun main() {
     HeadlessApplication(object : ApplicationAdapter() {}, HeadlessApplicationConfiguration())
 

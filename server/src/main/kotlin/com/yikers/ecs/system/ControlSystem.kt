@@ -13,12 +13,9 @@ import com.yikers.ecs.component.Intent
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.resource.RunState
 
-// Per-climber control: each entity's Controller decides its move this frame and we
-// record it as Intent -- nothing more. Every player is driven by a RelayController
-// now (a client's relayed InputCommand); the server no longer knows or cares
-// whether that client is a human or a bot. Mechanic systems (MoveSystem,
-// JumpSystem, ...) read Intent downstream and enact it, so ControlSystem makes no
-// physics writes. ctx carries the climber's own state for the relay seam.
+// Per-climber control: each Controller decides its move and we record it as Intent.
+// Every player is a RelayController (a client's relayed InputCommand); mechanic
+// systems read Intent downstream and enact it.
 class ControlSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),

@@ -152,11 +152,8 @@ class LobbyScreen(private val game: YikersGame) : KtxScreen {
         }
     }
 
-    // Start an in-process server and immediately join it as a human client. Other
-    // clients find it via discovery, or direct-connect to 127.0.0.1 on the same box.
-    // BootConfig.bots in-process bot clients are attached to the hosted server: they
-    // get a slot via the server's generic localSession() and are pumped on its tick
-    // thread (~1-tick lag, so they actually climb). The server stays bot-blind.
+    // Start an in-process server, attach BootConfig.bots in-process bots (server stays
+    // bot-blind), then join as a human client.
     private fun startHost() {
         val cfg = SessionConfig()
         val name = "Host @ ${hostName()}"

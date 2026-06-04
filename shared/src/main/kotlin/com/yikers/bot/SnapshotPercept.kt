@@ -8,21 +8,10 @@ import com.yikers.net.ShapeKind
 import com.yikers.net.WorldSnapshot
 import kotlin.math.abs
 
-// Rebuilds a bot's BotSelf + BotView from successive WorldSnapshots — the
-// client-side analog of the server's old ControlSystem.fillView. The wire carries
-// a playerId on every player ball (and -1 on boulders), so identity is exact:
-//   - self: the ball whose playerId == this client's slot
-//   - boulders: the non-player circles (playerId < 0)
-// Velocities (own vy, boulder vx/vy) are still derived by differencing consecutive
-// frames, and grounded is inferred from ~0 vertical speed while resting on a solid
-// top — the wire intentionally stays free of velocity/grounded state.
-//
-// Velocity is derived from how far things moved between DISTINCT snapshot ticks,
-// divided by the sim time those ticks represent (tickDelta / SIM_HZ) — never by
-// wall-clock. A client may pump faster or slower than the server broadcasts, so
-// wall time between reads doesn't match sim time; re-reading the same frame would
-// also self-difference to a spurious vy = 0. Keying off the authoritative tick makes
-// velocity exact regardless of pump cadence, which the jump-arc math relies on.
+// Rebuilds BotSelf + BotView from snapshots. Identity is exact (playerId on the
+// wire); velocity and grounded are derived (kept off the wire by design). Velocity
+// is keyed off the sim tick, not wall-clock, so it's correct however fast the client
+// pumps (re-reading the same frame would self-difference to a bogus vy = 0).
 class SnapshotPercept(private val runConfig: RunConfig) {
     val self = BotSelf()
     val view = BotView()
@@ -30,22 +19,16 @@ class SnapshotPercept(private val runConfig: RunConfig) {
     private var lastTick = -1L
     private var haveSelf = false
     private var lastSelfY = 0f
-
-    // Previous boulder centers keyed by stable entity id, for frame differencing.
     private val prevBoulderX = HashMap<Int, Float>()
     private val prevBoulderY = HashMap<Int, Float>()
-
     private val gravity = abs(GameConfig.GRAVITY * runConfig.gravityScale)
 
-    // myId = this client's slot, used to find its own ball in the snapshot.
     fun update(snap: WorldSnapshot, myId: Int) {
         self.speed = runConfig.horizontalSpeed
         self.jumpVelocity = runConfig.jumpVelocity
         view.gravityPxS2 = gravity
 
         val advanced = snap.tick != lastTick
-        // Sim seconds since the last distinct frame (>=1 tick), from the authoritative
-        // tick counter — independent of how often this client pumps.
         val frameDt = if (lastTick < 0) 0f else (snap.tick - lastTick) / GameConfig.SIM_HZ.toFloat()
 
         locateSelf(snap, myId, advanced, frameDt)
@@ -57,8 +40,6 @@ class SnapshotPercept(private val runConfig: RunConfig) {
         if (advanced) lastTick = snap.tick
     }
 
-    // Our own ball is the one tagged with our slot. Position updates every call;
-    // vy only on a new frame, over the time since the last distinct frame.
     private fun locateSelf(snap: WorldSnapshot, myId: Int, advanced: Boolean, frameDt: Float) {
         val mine = snap.entities.firstOrNull { it.playerId == myId } ?: return  // not spawned yet
         self.x = mine.x
@@ -68,12 +49,10 @@ class SnapshotPercept(private val runConfig: RunConfig) {
             lastSelfY = mine.y
             haveSelf = true
         }
-        // same frame: keep the last computed vy (don't divide a frame against itself)
     }
 
-    // Two lowest holes above the ball + the support slab below it. Mirror of the
-    // server's old fillView, reading PlatformSnap. holeWidth ~ 0 (a bridged/eased
-    // slab) reads as solid, so the bot treats it as having no hole.
+    // Two lowest holes above the ball + the support slab below it. holeWidth ~ 0
+    // (a bridged/eased slab) reads as solid.
     private fun fillHoles(platforms: List<PlatformSnap>, py: Float) {
         var firstY = Float.MAX_VALUE
         var firstCx = GameConfig.WIDTH / 2f
@@ -108,17 +87,13 @@ class SnapshotPercept(private val runConfig: RunConfig) {
         view.supportHoleWidth = if (supY == -Float.MAX_VALUE) 0f else supW
     }
 
-    // Boulders = the non-player circles (playerId < 0). Positions update every call;
-    // velocity only on a new frame, by differencing this frame's center against the
-    // SAME boulder's last center (matched by stable entity id). A recycled boulder
-    // teleports to a new platform; that jump is implausibly large, so clamp it to
-    // zero rather than report a bogus spike. On a re-read of the same frame the prior
-    // velocities are kept (no self-differencing).
+    // Boulders = non-player circles. Velocity by id-matched frame diff; a recycled
+    // boulder teleports (jump > MAX_PLAUSIBLE_STEP), so clamp that to zero.
     private fun fillBoulders(entities: List<EntitySnap>, advanced: Boolean, frameDt: Float) {
         var n = 0
         for (e in entities) {
             if (n >= view.boulderX.size) break
-            if (e.kind != ShapeKind.CIRCLE || e.playerId >= 0) continue  // not a boulder
+            if (e.kind != ShapeKind.CIRCLE || e.playerId >= 0) continue
             view.boulderX[n] = e.x
             view.boulderY[n] = e.y
             if (advanced) {
@@ -138,7 +113,6 @@ class SnapshotPercept(private val runConfig: RunConfig) {
         view.boulderCount = n
 
         if (advanced) {
-            // Remember this frame's centers (keyed by id) for the next diff.
             prevBoulderX.clear()
             prevBoulderY.clear()
             for (e in entities) {
@@ -149,9 +123,8 @@ class SnapshotPercept(private val runConfig: RunConfig) {
         }
     }
 
-    // Resting on a solid top (ground or a slab's non-hole half) with ~0 vertical
-    // speed. The vertical-speed gate rejects the airborne apex (vy ~ 0 but no
-    // surface beneath); the surface gate rejects free-fall over a hole.
+    // Resting on a solid top with ~0 vertical speed. The speed gate rejects the
+    // airborne apex; the surface gate rejects free-fall over a hole.
     private fun inferGrounded(platforms: List<PlatformSnap>): Boolean {
         if (abs(self.vy) > GROUNDED_VY_BAND) return false
         val r = GameConfig.BALL_RADIUS
@@ -167,11 +140,9 @@ class SnapshotPercept(private val runConfig: RunConfig) {
     }
 
     private companion object {
-        // A boulder moves at most ~0.1m/frame; a recycle teleport jumps a whole
-        // platform interval. Anything past this is a discontinuity, not motion.
-        const val MAX_PLAUSIBLE_STEP = 0.5f // m, per frame
-        const val HOLE_EPS = 0.02f          // holeWidth at/below this reads as solid
-        const val GROUNDED_VY_BAND = 0.8f   // m/s; |vy| under this counts as "not climbing/falling"
-        const val GROUNDED_GAP = 0.08f      // m; ball bottom this close to a top counts as resting
+        const val MAX_PLAUSIBLE_STEP = 0.5f // m/frame; past this = a recycle teleport
+        const val HOLE_EPS = 0.02f
+        const val GROUNDED_VY_BAND = 0.8f
+        const val GROUNDED_GAP = 0.08f
     }
 }

@@ -22,12 +22,9 @@ import com.yikers.ecs.component.Physics
 import com.yikers.ecs.resource.RunState
 import kotlin.math.abs
 
-// Test-only server-side autopilot. In production a bot is a CLIENT (BotClient reads
-// the WorldSnapshot and ships InputCommand), but the headless systems tests drive
-// the sim through the ECS directly with no snapshot loop — so this Controller +
-// system project the ECS world straight into the SAME shared BotBrain. That keeps
-// the climbing algorithm single-sourced (no duplicate of the decision logic) while
-// the production server stays bot-free (relay-only).
+// Test-only server-side autopilot: drives the headless sim through the ECS (no
+// snapshot loop) into the SAME shared BotBrain, so the algorithm stays single-sourced
+// while production stays relay-only.
 
 // Holder: carries this climber's percept; AutopilotSystem fills it and decides.
 class AutopilotController : Controller {
@@ -39,9 +36,8 @@ class AutopilotController : Controller {
     override fun decide(ctx: ControlContext): Move = Move(0f, false)
 }
 
-// The old ControlSystem bot branch, lifted into test support: fill each autopilot
-// climber's BotView from the ECS (two lowest holes above, support slab below,
-// kill-line distance, boulder pool) and write the BotBrain's decision to Intent.
+// The old ControlSystem bot branch, in test support: fill each autopilot climber's
+// BotView from the ECS and write the BotBrain's decision to Intent.
 class AutopilotSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
