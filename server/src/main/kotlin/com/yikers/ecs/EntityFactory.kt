@@ -82,6 +82,7 @@ class EntityFactory(
         controller: Controller,
         color: Color = Color.CORAL,
         group: Short = PLAYER_GROUP,
+        slot: Int = -1,
     ): Entity {
         val r = GameConfig.BALL_RADIUS
         val ballBody = pw.body {
@@ -118,7 +119,7 @@ class EntityFactory(
             it += Intent()
             it += JumpState()
             it += LethalHit()
-            it += Player()
+            it += Player(slot)
             it += Augments()              // inert: no augments owned yet
         }
         ballBody.userData = entity

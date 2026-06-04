@@ -13,6 +13,7 @@ import com.yikers.ecs.buildArena
 import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.component.Physics
+import com.yikers.ecs.component.Player
 import com.yikers.ecs.component.RenderShape
 import com.yikers.ecs.component.Transform
 import com.yikers.ecs.resource.Refs
@@ -50,7 +51,8 @@ class GameInstance(private val cfg: SessionConfig) {
     private val refs = Refs()
     private val world: World
     private val factory: EntityFactory
-    private val renderables: Family
+    private val playerRenderables: Family   // balls: stamp playerId from Player.slot
+    private val propRenderables: Family      // boulders etc: playerId = -1
     private val platforms: Family
     private var tickCount = 0L
 
@@ -61,7 +63,6 @@ class GameInstance(private val cfg: SessionConfig) {
     private val usedSlots = HashSet<Int>()
     private val relays = HashMap<Int, RelayController>()
     private val entitiesBySlot = HashMap<Int, Entity>()
-    private val slotByEntity = HashMap<Entity, Int>()   // reverse, for stamping snapshots
     private val pendingOps = ConcurrentLinkedQueue<() -> Unit>()
 
     // Live player count (reserved slots). Cheap, thread-safe — used by host listings.
@@ -92,7 +93,8 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(DeathSystem())
             }
         }
-        renderables = world.family { all(Transform, RenderShape) }
+        playerRenderables = world.family { all(Transform, RenderShape, Player) }
+        propRenderables = world.family { all(Transform, RenderShape).none(Player) }
         platforms = world.family { all(PlatformC) }
 
         factory = EntityFactory(world, physicsWorld, cfg.runConfig, refs)
@@ -153,10 +155,10 @@ class GameInstance(private val cfg: SessionConfig) {
             controller = controller,
             color = Palette.distinct(slot, COLOR_SPREAD),
             group = (-(slot + 1)).toShort(),
+            slot = slot,
         )
         relays[slot] = controller
         entitiesBySlot[slot] = e
-        slotByEntity[e] = slot
         if (refs.player == null) refs.player = e   // first joiner = primary (scroll/score)
         runState.started = true
     }
@@ -167,7 +169,6 @@ class GameInstance(private val cfg: SessionConfig) {
             return
         }
         relays.remove(slot)
-        slotByEntity.remove(e)
         with(world) {
             physicsWorld.destroyBody(e[Physics].body)
             physicsWorld.destroyBody(e[FootSensor].footBody)
@@ -182,14 +183,23 @@ class GameInstance(private val cfg: SessionConfig) {
         val ents = ArrayList<EntitySnap>()
         val plats = ArrayList<PlatformSnap>()
         with(world) {
-            renderables.forEach { e ->
+            playerRenderables.forEach { e ->
                 val t = e[Transform]
                 val rs = e[RenderShape]
                 ents += EntitySnap(
                     rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
                     t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
                     id = e.id,
-                    playerId = slotByEntity[e] ?: -1,
+                    playerId = e[Player].slot,
+                )
+            }
+            propRenderables.forEach { e ->
+                val t = e[Transform]
+                val rs = e[RenderShape]
+                ents += EntitySnap(
+                    rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
+                    t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
+                    id = e.id,
                 )
             }
             platforms.forEach { e ->
