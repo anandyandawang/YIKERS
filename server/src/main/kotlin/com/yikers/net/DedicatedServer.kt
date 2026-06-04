@@ -9,6 +9,7 @@ import com.yikers.net.wire.Welcome
 import com.yikers.net.wire.Wire
 import java.io.DataInputStream
 import java.io.DataOutputStream
+import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -22,12 +23,18 @@ class DedicatedServer(
     tcpPort: Int,
     private val cfg: SessionConfig,
     private val maxPlayers: Int = DEFAULT_MAX_PLAYERS,
+    // false => private solo server: loopback bind, no LAN advertise.
+    val discoverable: Boolean = true,
 ) {
     private val host = LocalHost()
     private val room = host.open(cfg)
     private val instance = host.instance(room)
 
-    private val serverSocket = ServerSocket(tcpPort) // port 0 => OS-assigned ephemeral
+    // Discoverable: bind all interfaces. Private: loopback only (127.0.0.1, IPv4 to
+    // match the client dial). port 0 => OS-assigned ephemeral either way.
+    private val serverSocket =
+        if (discoverable) ServerSocket(tcpPort)
+        else ServerSocket(tcpPort, BACKLOG, InetAddress.getByName("127.0.0.1"))
 
     // Guarded by `conns` itself for iteration.
     private val conns = ArrayList<ClientConn>()
@@ -55,12 +62,15 @@ class DedicatedServer(
         running = true
         ticker = thread(name = "yikers-server-tick", isDaemon = true) { runTickLoop() }
         acceptor = thread(name = "yikers-server-accept", isDaemon = true) { runAcceptLoop() }
-        responder = DiscoveryResponder(
-            name = name,
-            tcpPort = port,
-            maxPlayers = maxPlayers,
-            players = { playerCount },
-        ).also { it.start() }
+        // Private solo server stays off the LAN: no discovery responder.
+        if (discoverable) {
+            responder = DiscoveryResponder(
+                name = name,
+                tcpPort = port,
+                maxPlayers = maxPlayers,
+                players = { playerCount },
+            ).also { it.start() }
+        }
     }
 
     private fun runAcceptLoop() {
@@ -147,5 +157,6 @@ class DedicatedServer(
         const val TICK_HZ = 60
         const val DT = 1f / TICK_HZ
         const val DEFAULT_MAX_PLAYERS = 8
+        const val BACKLOG = 50
     }
 }

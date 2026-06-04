@@ -10,10 +10,8 @@ import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.yikers.YikersGame
 import com.yikers.config.GameConfig
 import com.yikers.config.Prefs
-import com.yikers.control.BootConfig
 import com.yikers.control.HumanAgent
 import com.yikers.net.GameHost
-import com.yikers.net.LocalHost
 import com.yikers.net.NetworkGameSession
 import com.yikers.net.NetworkHost
 import com.yikers.net.Participant
@@ -54,43 +52,23 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         hudCamera.position.set(GameConfig.WIDTH_PX / 2f, GameConfig.HEIGHT_PX / 2f, 0f)
         hudCamera.update()
 
-        val cfg = SessionConfig(
-            seed = BootConfig.seed,
-            previousHighScore = Prefs.highScore,
-        )
-
-        // Two hosts behind one seam: LocalHost embeds the sim, NetworkHost connects.
-        val h: GameHost = if (Session.mode == Session.Mode.NETWORK) {
-            NetworkHost(Session.host, Session.port)
-        } else {
-            LocalHost()
-        }
+        // Always a network client now: solo boots its own private server, so both
+        // paths join over a socket. Server owns sim config; open() is a sentinel and
+        // the real config arrives via Welcome.
+        val h: GameHost = NetworkHost(Session.host, Session.port)
         try {
-            val r = h.open(cfg)
+            val r = h.open(SessionConfig())
             room = r
             host = h
-            if (Session.mode == Session.Mode.NETWORK) {
-                joinNetwork(h, r, cfg)
-            } else {
-                joinLocal(h, r, cfg)
-            }
+            val s = h.join(r)
+            speed = (s as? NetworkGameSession)?.config?.runConfig?.horizontalSpeed
+                ?: SessionConfig().runConfig.horizontalSpeed
+            human = Participant(s, HumanAgent(speed))
         } catch (e: Exception) {
-            Gdx.app.error("YIKERS", "join failed", e) // unreachable -> back to lobby
+            Gdx.app.error("YIKERS", "join failed", e)
             game.setScreen<LobbyScreen>()
             return
         }
-    }
-
-    private fun joinNetwork(h: GameHost, r: RoomId, cfg: SessionConfig) {
-        val s = h.join(r)
-        speed = (s as? NetworkGameSession)?.config?.runConfig?.horizontalSpeed
-            ?: cfg.runConfig.horizontalSpeed
-        human = Participant(s, HumanAgent(speed))
-    }
-
-    private fun joinLocal(h: GameHost, r: RoomId, cfg: SessionConfig) {
-        speed = cfg.runConfig.horizontalSpeed
-        human = Participant(h.join(r), HumanAgent(speed))
     }
 
     override fun render(delta: Float) {
@@ -99,7 +77,6 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         viewport.apply()
 
         human.pump(delta)                 // decide + submit input
-        human.session.step(delta)         // local: steps sim; network: no-op
         val snap = human.session.snapshot()
 
         // Center on the kill-line using OUR local view height (never sent).

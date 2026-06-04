@@ -5,7 +5,6 @@ interface GameSession {
     val playerId: Int   // the slot this client owns, assigned at join
 
     fun submitInput(cmd: InputCommand)
-    fun step(deltaTime: Float)
     fun snapshot(): WorldSnapshot
     fun close()
 }

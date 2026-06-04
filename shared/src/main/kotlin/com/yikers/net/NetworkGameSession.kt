@@ -51,8 +51,6 @@ class NetworkGameSession(
         }
     }
 
-    override fun step(deltaTime: Float) = Unit // server-authoritative
-
     override fun snapshot(): WorldSnapshot = latest.get()
 
     override fun close() {
