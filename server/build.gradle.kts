@@ -14,16 +14,6 @@ application {
     mainClass.set("com.yikers.server.MainKt")
 }
 
-// Standalone bot launcher: connects bot clients to a running server over the socket.
-// The server has no bot concept; these are ordinary clients. Env: YIKERS_HOST,
-// YIKERS_PORT, YIKERS_BOTS. Run after a server is up: ./gradlew :server:botRun
-tasks.register<JavaExec>("botRun") {
-    group = "application"
-    description = "Connects bot clients to a server over the socket."
-    mainClass.set("com.yikers.net.BotMainKt")
-    classpath = sourceSets["main"].runtimeClasspath
-}
-
 dependencies {
     implementation(project(":shared"))
     implementation(libs.gdx)
@@ -64,6 +54,9 @@ dependencies {
     // runs headless in production too), so only the JUnit bits are test-only.
     "integrationTestImplementation"(libs.junit.jupiter)
     "integrationTestRuntimeOnly"(libs.junit.platform.launcher)
+    // The socket-bot integration test drives a real bot client against the server.
+    // (Production: the server has no bot dependency; this is test-only.)
+    "integrationTestImplementation"(project(":bot"))
 }
 
 val integrationTest = tasks.register<Test>("integrationTest") {

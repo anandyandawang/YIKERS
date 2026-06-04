@@ -1,7 +1,7 @@
 package com.yikers.integration
 
 import com.yikers.config.GameConfig
-import com.yikers.net.BotRunner
+import com.yikers.bot.app.BotRunner
 import com.yikers.net.DedicatedServer
 import com.yikers.net.GameSession
 import com.yikers.net.NetworkHost

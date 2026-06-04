@@ -1,11 +1,11 @@
-package com.yikers.net
+package com.yikers.bot.app
 
 import com.yikers.net.discovery.DEFAULT_TCP_PORT
 
 // Standalone bot launcher: connects N bot clients to a running server over the
 // socket. Pure JVM — no libGDX, no sim — because a bot is just a client (reads
 // snapshots, sends input). Run AFTER a server is up:
-//   ./gradlew :server:botRun        (env: YIKERS_HOST, YIKERS_PORT, YIKERS_BOTS)
+//   ./gradlew :bot:run        (env: YIKERS_HOST, YIKERS_PORT, YIKERS_BOTS)
 // The server it connects to has no bot concept at all; these are ordinary clients.
 fun main() {
     val host = raw("yikers.host", "YIKERS_HOST") ?: "127.0.0.1"

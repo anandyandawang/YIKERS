@@ -1,15 +1,20 @@
-package com.yikers.net
+package com.yikers.bot.app
 
 import com.yikers.bot.BotAgent
+import com.yikers.config.GameConfig
+import com.yikers.net.NetworkGameSession
+import com.yikers.net.NetworkHost
+import com.yikers.net.Participant
+import com.yikers.net.RoomId
 import java.util.concurrent.locks.LockSupport
 import kotlin.concurrent.thread
 
 // Launches bot clients that connect to a server over the REAL socket and drive
-// themselves — the same path a human client takes (NetworkHost -> NetworkGameSession).
+// themselves — the same path a human's client takes (NetworkHost -> NetworkGameSession).
 // The server has no idea these are bots: they handshake, read WorldSnapshots, and
 // submit InputCommands like anyone else. Each bot is a Participant(networkSession,
-// BotAgent); one daemon thread pumps them all at the server tick rate (the server
-// owns the clock, so nothing is stepped here).
+// BotAgent); one daemon thread pumps them all at the sim tick rate (the server owns
+// the clock, so nothing is stepped here).
 class BotRunner(
     private val host: String,
     private val port: Int,
@@ -32,11 +37,12 @@ class BotRunner(
     }
 
     private fun runPumpLoop() {
-        val stepNanos = 1_000_000_000L / DedicatedServer.TICK_HZ
+        val stepNanos = 1_000_000_000L / GameConfig.SIM_HZ
+        val dt = 1f / GameConfig.SIM_HZ
         var next = System.nanoTime()
         while (running) {
             try {
-                participants.forEach { it.pump(DedicatedServer.DT) }
+                participants.forEach { it.pump(dt) }
             } catch (e: Exception) {
                 System.err.println("yikers-bot-pump error: ${e.stackTraceToString()}")
             }
