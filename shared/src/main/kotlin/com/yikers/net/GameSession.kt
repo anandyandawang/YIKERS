@@ -6,7 +6,6 @@ package com.yikers.net
 // untouched. The GameInstance behind it is never exposed to the client.
 interface GameSession {
     fun submitInput(cmd: InputCommand)
-    fun setViewHeight(height: Float)   // client's viewport -> server world bounds
     fun step(deltaTime: Float)
     fun snapshot(): WorldSnapshot
     fun close()

@@ -7,7 +7,6 @@ import com.yikers.sim.GameInstance
 // GameHost.close), so close() here is a no-op.
 class LocalGameSession(private val instance: GameInstance) : GameSession {
     override fun submitInput(cmd: InputCommand) = instance.applyInput(cmd)
-    override fun setViewHeight(height: Float) = instance.setViewHeight(height)
     override fun step(deltaTime: Float) = instance.tick(deltaTime)
     override fun snapshot(): WorldSnapshot = instance.snapshot()
     override fun close() = Unit

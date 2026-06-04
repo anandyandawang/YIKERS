@@ -18,11 +18,12 @@ class SnapshotRenderer(
     // Reused so each entity's flattened r/g/b/a doesn't allocate a Color per frame.
     private val tint = Color()
 
-    fun render(snap: WorldSnapshot) {
+    // viewH is THIS client's local visible world height (device aspect via the
+    // viewport). It never crosses the seam — each client centers its own camera.
+    fun render(snap: WorldSnapshot, viewH: Float) {
         // kill-line (scrollY) is the view's bottom edge; center the cam half a
-        // view-height above it so [scrollY, scrollY + viewHeight] shows.
+        // view-height above it so [scrollY, scrollY + viewH] shows.
         val viewBottom = snap.scrollY
-        val viewH = snap.viewHeight
         cam.position.y = viewBottom + viewH / 2f
         cam.update()
         shape.projectionMatrix = cam.combined
