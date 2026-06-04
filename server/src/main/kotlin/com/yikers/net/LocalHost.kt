@@ -2,8 +2,7 @@ package com.yikers.net
 
 import com.yikers.sim.GameInstance
 
-// Room registry behind a DedicatedServer: opens GameInstances keyed by RoomId. The
-// server drives the clock + allocates slots itself, so no join()/list() here.
+// Room registry for DedicatedServer. Server owns clock + slots, so no join()/list().
 class LocalHost {
     private val rooms = LinkedHashMap<RoomId, GameInstance>()
     private var counter = 0

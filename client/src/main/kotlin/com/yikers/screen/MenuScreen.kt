@@ -27,7 +27,7 @@ class MenuScreen(private val game: YikersGame) : KtxScreen {
     private val multiBtn = Rectangle()
 
     override fun show() {
-        // Back to menu ends a solo run's private server; an MP host stays up.
+        // Menu return stops a solo server; an MP host survives.
         Session.hostedServer?.let { if (!it.discoverable) Session.shutdownHost() }
     }
 
@@ -84,8 +84,7 @@ class MenuScreen(private val game: YikersGame) : KtxScreen {
     }
 
     private fun startSinglePlayer() {
-        // Solo = boot a private in-process server + join it over loopback. Same path
-        // as multiplayer, just not advertised on the LAN.
+        // Solo = boot a private server + join it over loopback.
         val cfg = SessionConfig(seed = BootConfig.seed, previousHighScore = Prefs.highScore)
         val server = runCatching { DedicatedServer("solo", 0, cfg, discoverable = false) }
             .getOrElse {

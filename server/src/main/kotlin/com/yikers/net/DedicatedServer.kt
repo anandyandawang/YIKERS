@@ -23,15 +23,14 @@ class DedicatedServer(
     tcpPort: Int,
     private val cfg: SessionConfig,
     private val maxPlayers: Int = DEFAULT_MAX_PLAYERS,
-    // false => private solo server: loopback bind, no LAN advertise.
+    // false => loopback-only, no LAN advertise.
     val discoverable: Boolean = true,
 ) {
     private val host = LocalHost()
     private val room = host.open(cfg)
     private val instance = host.instance(room)
 
-    // Discoverable: bind all interfaces. Private: loopback only (127.0.0.1, IPv4 to
-    // match the client dial). port 0 => OS-assigned ephemeral either way.
+    // Private: loopback only. IPv4 127.0.0.1 to match the client dial.
     private val serverSocket =
         if (discoverable) ServerSocket(tcpPort)
         else ServerSocket(tcpPort, BACKLOG, InetAddress.getByName("127.0.0.1"))
@@ -62,7 +61,7 @@ class DedicatedServer(
         running = true
         ticker = thread(name = "yikers-server-tick", isDaemon = true) { runTickLoop() }
         acceptor = thread(name = "yikers-server-accept", isDaemon = true) { runAcceptLoop() }
-        // Private solo server stays off the LAN: no discovery responder.
+        // Private stays off the LAN: no discovery.
         if (discoverable) {
             responder = DiscoveryResponder(
                 name = name,

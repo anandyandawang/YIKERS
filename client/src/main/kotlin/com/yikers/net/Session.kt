@@ -1,7 +1,6 @@
 package com.yikers.net
 
-// Holds the LAN target PlayScreen connects to + any in-process server this client
-// booted (solo or host). Stashed here instead of threading through constructors.
+// LAN target + this client's in-process server (solo or host).
 object Session {
     @Volatile
     var host: String = "127.0.0.1"

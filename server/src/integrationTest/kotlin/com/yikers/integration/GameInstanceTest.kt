@@ -14,7 +14,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// Drives GameInstance directly: a bot climbs + scores; a relayed input moves a climber.
+// Drives GameInstance directly: bot climbs+scores; relayed input moves climber.
 @HeadlessGdx
 class GameInstanceTest {
 

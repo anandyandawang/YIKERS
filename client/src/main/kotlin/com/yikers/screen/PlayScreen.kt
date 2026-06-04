@@ -52,9 +52,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         hudCamera.position.set(GameConfig.WIDTH_PX / 2f, GameConfig.HEIGHT_PX / 2f, 0f)
         hudCamera.update()
 
-        // Always a network client now: solo boots its own private server, so both
-        // paths join over a socket. Server owns sim config; open() is a sentinel and
-        // the real config arrives via Welcome.
+        // Network-only now. Server owns config; open() sentinel, config via Welcome.
         val h: GameHost = NetworkHost(Session.host, Session.port)
         try {
             val r = h.open(SessionConfig())
