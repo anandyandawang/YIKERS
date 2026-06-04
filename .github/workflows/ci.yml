@@ -20,13 +20,13 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      - name: Run headless integration test
-        run: ./gradlew core:test --no-daemon --stacktrace
+      - name: Run unit + headless integration tests
+        run: ./gradlew core:test core:integrationTest --no-daemon --stacktrace
 
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: core-test-report
-          path: core/build/reports/tests/test
+          path: core/build/reports/tests/integrationTest
           if-no-files-found: ignore
