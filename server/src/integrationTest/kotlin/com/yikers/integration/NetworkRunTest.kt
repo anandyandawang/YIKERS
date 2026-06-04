@@ -1,6 +1,5 @@
 package com.yikers.integration
 
-import com.yikers.config.GameConfig
 import com.yikers.net.DedicatedServer
 import com.yikers.net.GameSession
 import com.yikers.net.InputCommand
@@ -11,7 +10,6 @@ import com.yikers.net.WorldSnapshot
 import com.yikers.support.HeadlessGdx
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.math.abs
 
 // End-to-end LAN test: boot a real DedicatedServer on an ephemeral localhost port,
 // connect TWO socket clients to the one room, and prove they share the server's
@@ -45,19 +43,18 @@ class NetworkRunTest {
                 "both climbers must exist in the shared world; got ${playerBalls(s0).size}"
             }
 
-            // End-to-end input: hold right on client 0 while client 1 stays idle. The
-            // wire carries no entity ids, so we track the rightmost player ball — the
-            // only one being driven right — and prove it advanced. This shows an
-            // InputCommand travelled the wire, hit the sim, and came back in a snapshot.
-            // Short window so the rising kill-line can't end the run first.
-            val x0 = playerBalls(p0.snapshot()).maxOf { it.x }
+            // End-to-end input: hold right on client 0. Its OWN ball is the one tagged
+            // playerId 0 on the wire, so we track exactly that one and prove it
+            // advanced — an InputCommand travelled the wire, hit the sim, and came back
+            // in a snapshot. Short window so the rising kill-line can't end the run.
+            val x0 = ballOf(p0.snapshot(), 0).x
             repeat(40) {
                 p0.submitInput(InputCommand(playerId = 0, vx = 4f, jump = false))
                 Thread.sleep(16)
             }
-            val x1 = playerBalls(p0.snapshot()).maxOf { it.x }
+            val x1 = ballOf(p0.snapshot(), 0).x
             assertTrue(x1 > x0) {
-                "client 0's held-right input must move its climber over the wire; x0=$x0 x1=$x1"
+                "client 0's held-right input must move its own climber over the wire; x0=$x0 x1=$x1"
             }
 
             // The shared clock keeps advancing on its own thread.
@@ -71,9 +68,11 @@ class NetworkRunTest {
         }
     }
 
-    // Player balls only (by size; boulders are bigger circles, no ids on the wire).
-    private fun playerBalls(snap: WorldSnapshot) =
-        snap.entities.filter { abs(it.sizeX - GameConfig.BALL_RADIUS * 2f) < 0.12f }
+    // Player balls only (slot id >= 0; boulders are -1).
+    private fun playerBalls(snap: WorldSnapshot) = snap.entities.filter { it.playerId >= 0 }
+
+    // The ball owned by a given slot.
+    private fun ballOf(snap: WorldSnapshot, id: Int) = snap.entities.first { it.playerId == id }
 
     // Spin until the client has seen at least one real frame, or give up.
     private fun awaitTick(session: GameSession, timeoutMs: Long = 5000) {

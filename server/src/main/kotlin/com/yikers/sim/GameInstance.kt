@@ -65,6 +65,7 @@ class GameInstance(private val cfg: SessionConfig) {
     private val usedSlots = HashSet<Int>()
     private val relays = HashMap<Int, RelayController>()
     private val entitiesBySlot = HashMap<Int, Entity>()
+    private val slotByEntity = HashMap<Entity, Int>()   // reverse, for stamping snapshots
     private val pendingOps = ConcurrentLinkedQueue<() -> Unit>()
 
     // Live player count (reserved slots). Cheap, thread-safe — used by host listings.
@@ -161,6 +162,7 @@ class GameInstance(private val cfg: SessionConfig) {
         )
         relays[slot] = controller
         entitiesBySlot[slot] = e
+        slotByEntity[e] = slot
         if (refs.player == null) refs.player = e   // first joiner = primary (scroll/score)
         runState.started = true
     }
@@ -171,6 +173,7 @@ class GameInstance(private val cfg: SessionConfig) {
             return
         }
         relays.remove(slot)
+        slotByEntity.remove(e)
         with(world) {
             physicsWorld.destroyBody(e[Physics].body)
             physicsWorld.destroyBody(e[FootSensor].footBody)
@@ -192,6 +195,7 @@ class GameInstance(private val cfg: SessionConfig) {
                 ents += EntitySnap(
                     rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
                     t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
+                    playerId = slotByEntity[e] ?: -1,
                 )
             }
             platforms.forEach { e ->

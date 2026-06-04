@@ -1,7 +1,6 @@
 package com.yikers.bot
 
 import com.yikers.config.RunConfig
-import com.yikers.config.laneX
 import com.yikers.net.GameSession
 import com.yikers.net.InputCommand
 
@@ -16,12 +15,11 @@ class BotClient(
 ) {
     private val percept = SnapshotPercept(runConfig)
     private val brain = BotBrain()
-    private val spawnHintX = laneX(session.playerId)
 
     fun pump(dt: Float) {
         val snap = session.snapshot()
         if (snap.entities.isEmpty()) return            // world not built / no ball yet
-        percept.update(snap, dt, spawnHintX)
+        percept.update(snap, dt, session.playerId)
         val move = brain.decide(percept.self, percept.view)
         session.submitInput(InputCommand(session.playerId, move.vx, move.jump))
     }

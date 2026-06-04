@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.math.abs
 
 // GameInstance is the embedded server, driven through the LocalHost seam exactly
 // like a real client. These prove (a) a BOT CLIENT — an ordinary GameSession
@@ -78,9 +77,9 @@ class GameInstanceTest {
         }
     }
 
-    // The single player ball, found by size (ball vs boulder); the wire has no ids.
+    // The single player ball, found by its slot id on the wire.
     private fun playerBall(snap: WorldSnapshot): EntitySnap =
-        snap.entities.first { abs(it.sizeX - GameConfig.BALL_RADIUS * 2f) < 0.12f }
+        snap.entities.first { it.playerId >= 0 }
 
     companion object {
         private const val SEED = 42L

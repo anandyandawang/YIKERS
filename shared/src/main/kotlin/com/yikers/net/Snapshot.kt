@@ -4,7 +4,9 @@ import kotlinx.serialization.Serializable
 
 // One renderable entity (ball or boulder). Color is flattened to r/g/b/a floats so
 // the socket transport needs no custom Color serializer; the client rebuilds a
-// Color at draw time. Positions/sizes are meters, center-origin.
+// Color at draw time. Positions/sizes are meters, center-origin. playerId is the
+// owning client's slot for a player ball, or -1 for anything else (boulders): it
+// lets a client find its OWN ball with no guessing (a bot client steers off it).
 @Serializable
 data class EntitySnap(
     val kind: ShapeKind,
@@ -12,6 +14,7 @@ data class EntitySnap(
     val x: Float, val y: Float,
     val sizeX: Float, val sizeY: Float,
     val rotation: Float,
+    val playerId: Int = -1,
 )
 
 // One platform: a solid slab at y with a gap spanning [holeX, holeX + holeWidth].
