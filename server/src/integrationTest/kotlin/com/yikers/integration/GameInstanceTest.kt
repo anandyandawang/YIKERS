@@ -15,9 +15,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// Driven through the LocalHost seam like a real client: (a) a bot client (a
-// GameSession + BotAgent) climbs + scores, (b) a relayed human InputCommand moves
-// its climber. The instance never knows which client is a bot.
+// Through the LocalHost seam: a bot climbs + scores; a relayed input moves a climber.
 @HeadlessGdx
 class GameInstanceTest {
 
@@ -35,10 +33,8 @@ class GameInstanceTest {
             }
             assertTrue(start.entities.isNotEmpty()) { "snapshot must expose the boulder pool" }
 
-            // A bot is just a client: a Participant pairing a session with a BotAgent.
-            // join -> read snapshot -> decide -> submit, identical to a human client.
             val bot = Participant(host.join(room), BotAgent(RunConfig()))
-            inst.tick(dt) // spawn the bot's ball (addPlayer queued the spawn)
+            inst.tick(dt) // spawn the bot's ball
 
             repeat(CLIMB_SECONDS * 60) {
                 bot.pump(dt)
@@ -63,7 +59,6 @@ class GameInstanceTest {
             inst.tick(dt) // spawn slot 0's ball
             val x0 = playerBall(inst.snapshot()).x
 
-            // Hold right for ~0.5s via the relay; MoveSystem enacts Intent.vx.
             repeat(30) {
                 inst.applyInput(InputCommand(playerId = session.playerId, vx = 4f, jump = false))
                 inst.tick(dt)
@@ -76,7 +71,6 @@ class GameInstanceTest {
         }
     }
 
-    // The single player ball, found by its slot id on the wire.
     private fun playerBall(snap: WorldSnapshot): EntitySnap =
         snap.entities.first { it.playerId >= 0 }
 

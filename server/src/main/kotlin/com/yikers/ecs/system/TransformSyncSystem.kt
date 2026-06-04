@@ -9,7 +9,6 @@ import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.Transform
 
-// Copy Box2D body -> render Transform. Keep the foot sensor under the ball.
 class TransformSyncSystem :
     IteratingSystem(family { all(Physics, Transform) }) {
     override fun onTickEntity(entity: Entity) {

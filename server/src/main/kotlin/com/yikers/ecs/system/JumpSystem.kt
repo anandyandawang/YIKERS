@@ -16,11 +16,7 @@ import com.yikers.ecs.component.augment.GrantsAirJumps
 import com.yikers.ecs.component.augment.with
 import com.yikers.ecs.resource.RunState
 
-// Owns the whole jump mechanic: ground jump + air jumps. Reads the per-frame
-// Intent (from ControlSystem) and the climber's Augments. Air jumps are a
-// parameter of jumping (same vy, different gate), so they live here, not in a
-// separate system. Jump augments contribute via the GrantsAirJumps trait --
-// adding one (e.g. a higher-tier TripleJump) needs no change here.
+// Ground + air jumps from Intent + Augments. Air jumps gate on GrantsAirJumps.
 class JumpSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
@@ -36,7 +32,6 @@ class JumpSystem(
         if (grounded) {
             body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
         } else {
-            // air jump: spend one if owned augments grant any (e.g. DoubleJump)
             val airJumps = entity[Augments].with<GrantsAirJumps>().sumOf { it.extraAirJumps }
             if (jumpState.airJumpsUsed < airJumps) {
                 body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)

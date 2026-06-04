@@ -2,7 +2,6 @@ package com.yikers.bot
 
 import com.yikers.config.GameConfig
 
-// What a bot reads about itself, rebuilt client-side from snapshots.
 class BotSelf {
     var x = 0f
     var y = 0f
@@ -12,8 +11,7 @@ class BotSelf {
     var jumpVelocity = 0f
 }
 
-// The bot's percept: holes above, the support slab below, kill-line, boulders.
-// Same fields the old server-side BotView had. Boulder arrays sized to the pool.
+// Bot percept: holes above, support slab below, kill-line, boulders.
 class BotView {
     var targetHoleCenterX = 0f
     var targetHoleWidth = 0f     // 0 => no platform above

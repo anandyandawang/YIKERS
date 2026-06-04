@@ -5,8 +5,6 @@ import com.yikers.net.InputAgent
 import com.yikers.net.InputCommand
 import com.yikers.net.WorldSnapshot
 
-// Bot brain as an InputAgent: rebuild a percept from the snapshot, run BotBrain,
-// emit an InputCommand. Same contract a human agent satisfies.
 class BotAgent(runConfig: RunConfig) : InputAgent {
     private val percept = SnapshotPercept(runConfig)
     private val brain = BotBrain()

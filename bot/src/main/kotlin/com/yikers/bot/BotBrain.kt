@@ -5,9 +5,7 @@ import kotlin.math.abs
 import kotlin.math.sign
 import kotlin.math.sqrt
 
-// Autopilot: hop up through each platform's gap, land on solid, repeat — boulder-
-// aware, and climbs flat-out near the kill-line. Reads self from `self`, world from
-// `view`. Pure (no engine deps); same algorithm the server used to run for bots.
+// Autopilot: hop through each gap, land on solid, repeat. Boulder-aware. Pure.
 class BotBrain {
     fun decide(self: BotSelf, v: BotView): BotMove {
         val deadzone = GameConfig.BALL_RADIUS * DEADZONE_FRAC
@@ -38,8 +36,8 @@ class BotBrain {
         else -> 0f
     }
 
-    // While this hop can still reach the next gap, head for it; once it can't (apex
-    // won't clear the slab), commit to landing on solid so we don't drop back through.
+    // Head for the next gap while the hop can still reach it; once the apex won't
+    // clear the slab, commit to landing on solid so we don't drop back through.
     private fun airborneSteer(self: BotSelf, v: BotView, deadzone: Float): Float {
         val goalX = v.targetHoleCenterX
         val g = v.gravityPxS2
@@ -67,14 +65,12 @@ class BotBrain {
         return steer(landX - self.x, deadzone, self.speed)
     }
 
-    // Aligned + grounded + no threat -> drift toward the hole-after-next.
     private fun driftVx(self: BotSelf, v: BotView, deadzone: Float): Float {
         if (v.nextHoleWidth <= 0f) return 0f
         return steer(v.nextHoleCenterX - self.x, deadzone, self.speed)
     }
 
-    // Nearest boulder closing on our lane within the reaction horizon -> step away
-    // (flip if that side is a wall). null = no threat.
+    // Nearest boulder closing on our lane -> step away (flip at a wall). null = none.
     private fun dodgeVx(self: BotSelf, v: BotView): Float? {
         var bestTtc = Float.MAX_VALUE
         var bestVx = 0f

@@ -8,24 +8,19 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// ScrollSystem owns the kill-line lifecycle: it stays still on the ground floor,
-// arms once a climber actually reaches the first platform, then accelerates the
-// kill-line (RunState.scrollY) upward. Drives the real sim and watches the arming.
+// Kill-line holds on the ground floor, arms when a climber reaches platform 1, then rises.
 @HeadlessGdx
 class ScrollLifecycleTest {
 
     @Test
     fun killLineHoldsUntilPlatformReachedThenScrolls() {
         buildSim(seed = SEED).use { h ->
-            // At spawn the lone bot rests on the ground floor: kill-line idle.
             assertFalse(h.startCamera) { "scroll must not start on the ground floor" }
             assertTrue(h.scrollY == 0f) { "kill-line sits at 0 until a platform is reached" }
 
-            // Bot climbs; once it foot-lands on the first real platform, the cam arms.
             val armed = h.world.stepUntil(MAX_SECONDS) { h.startCamera }
             assertTrue(armed) { "camera should arm once a climber reaches a platform" }
 
-            // Armed -> kill-line must now rise over time.
             val before = h.scrollY
             h.world.stepSeconds(1f)
             assertTrue(h.scrollY > before) {

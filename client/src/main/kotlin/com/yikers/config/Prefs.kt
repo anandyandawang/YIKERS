@@ -2,8 +2,7 @@ package com.yikers.config
 
 import com.badlogic.gdx.Gdx
 
-// One spot for save keys. highscore used v1; rest reserved for meta-progress.
-// [SEAM] character unlocks / checkpoints write here later.
+// Save keys. [SEAM] meta-progress (unlocks/checkpoints) writes here later.
 object Prefs {
     private const val FILE = "yikers"
     private const val KEY_HIGHSCORE = "highscore"
@@ -11,10 +10,8 @@ object Prefs {
     @Suppress("unused") private const val KEY_UNLOCKED = "unlockedCharacters"
     @Suppress("unused") private const val KEY_CHECKPOINTS = "checkpoints"
 
-    // Cache one Preferences instance. iOS getPreferences() builds a NEW
-    // IOSPreferences each call (desktop caches in a map), so a per-access getter
-    // split putInteger + flush across two instances -> write lost on iOS. One
-    // shared instance keeps put + flush together.
+    // Cache one instance: iOS getPreferences() builds a NEW IOSPreferences each
+    // call, so splitting put + flush across instances loses the write on iOS.
     private val prefs by lazy { Gdx.app.getPreferences(FILE) }
 
     var highScore: Int

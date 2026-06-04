@@ -11,11 +11,8 @@ import java.net.Socket
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
-// Client-side GameSession over a socket. Mirror image of LocalGameSession, but the
-// server owns the clock: step() is a no-op, snapshot() returns the LAST frame the
-// reader thread received (never touches a sim), and submitInput() ships one Input
-// frame. So PlayScreen's render loop is identical to singleplayer — only the host
-// behind the seam changed.
+// Client GameSession over a socket. Server owns the clock: step() is a no-op,
+// snapshot() returns the reader thread's last frame.
 class NetworkGameSession(
     private val socket: Socket,
     private val input: DataInputStream,
@@ -23,7 +20,6 @@ class NetworkGameSession(
     override val playerId: Int,
     val config: SessionConfig,
 ) : GameSession {
-    // Latest authoritative frame; benign empty snapshot until the first arrives.
     private val latest = AtomicReference(EMPTY)
     private val writeLock = Any()
 
@@ -38,7 +34,7 @@ class NetworkGameSession(
                 if (env is Snapshot) latest.set(env.world)
             }
         } catch (_: Exception) {
-            // server gone / socket reset -> stop updating; last snapshot stays put
+            // server gone -> stop updating; last snapshot stays put
         } finally {
             alive = false
         }
@@ -55,8 +51,7 @@ class NetworkGameSession(
         }
     }
 
-    // Server-authoritative: the client never advances the sim.
-    override fun step(deltaTime: Float) = Unit
+    override fun step(deltaTime: Float) = Unit // server-authoritative
 
     override fun snapshot(): WorldSnapshot = latest.get()
 

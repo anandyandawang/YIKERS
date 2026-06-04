@@ -12,10 +12,7 @@ import ktx.box2d.body
 import ktx.box2d.circle
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
-// A slab at height y with a hole spanning [holeX, holeX + holeWidth]: builds both
-// solid halves, the PlatformC entity, and the body -> entity userData wiring the
-// contact listener follows. Mirrors EntityFactory.spawnPlatform minus the random
-// hole. Collapses the copy-pasted slab setup the bridging tests used to repeat.
+// A slab with a fixed hole + body->entity userData. Like spawnPlatform, no RNG.
 fun World.spawnTestPlatform(
     pw: PhysicsWorld,
     y: Float,
@@ -30,8 +27,7 @@ fun World.spawnTestPlatform(
     return plat
 }
 
-// A bare dynamic climber ball (Physics + Player) centered at (x, y). No foot
-// sensor / controller: for PlatformSystem tests that poke touchedBy by hand.
+// A bare climber ball (Physics + Player); no foot sensor, for hand-poked tests.
 fun World.spawnTestClimber(pw: PhysicsWorld, x: Float, y: Float): Entity {
     val b = pw.body {
         type = BodyDef.BodyType.DynamicBody

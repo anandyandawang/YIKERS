@@ -11,9 +11,7 @@ import com.yikers.ecs.component.Player
 import com.yikers.ecs.resource.RunState
 import kotlin.math.pow
 
-// Owns the kill-line lifecycle. Holds the kill-line still until a climber has
-// actually reached the first platform, then auto-scrolls RunState.scrollY upward,
-// accelerating over time. The render cam follows scrollY.
+// Holds the kill-line still until a climber reaches platform 1, then scrolls up.
 class ScrollSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
@@ -27,16 +25,12 @@ class ScrollSystem(
             runState.startCamera = true
         }
         runState.totalTime = minOf(runState.totalTime + deltaTime, 60f)
-        // px/second scroll speed; * dt keeps scroll framerate-independent.
         val stepPerSecond = cfg.scrollAccelFactor * GameConfig.SCALING_FACTOR *
             (1.02.pow(runState.totalTime.toDouble()).toFloat() + 2f)
         runState.scrollY += stepPerSecond * deltaTime
     }
 
-    // "Reached the first platform" = grounded above the spawn floor. Ground-rest
-    // ball center is GROUND_HEIGHT + BALL_RADIUS (0.64m); platform-1 rest is
-    // ~2.78m, so the 2*radius margin excludes standing on the ground. grounded is
-    // false mid-air, so a jump straight off the floor never trips it.
+    // Grounded above the spawn floor (2*radius margin excludes the ground).
     private fun anyClimberOnPlatform(): Boolean {
         val floorTop = GameConfig.GROUND_HEIGHT + GameConfig.BALL_RADIUS * 2f
         var found = false

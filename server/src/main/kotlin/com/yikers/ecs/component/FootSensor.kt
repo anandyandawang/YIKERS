@@ -4,7 +4,7 @@ import com.badlogic.gdx.physics.box2d.Body
 import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType
 
-// Separate sensor body kept under ball. contacts > 0 = grounded (can jump).
+// contacts > 0 = grounded.
 data class FootSensor(
     val footBody: Body,
     var contacts: Int = 0,

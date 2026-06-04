@@ -1,12 +1,12 @@
 package com.yikers.config
 
-// Fixed game constants. Sizes in meters. Tweaked by playtest, not by run.
+// Fixed game constants (meters). Tweaked by playtest, not by run.
 object GameConfig {
     const val WIDTH = 4.8f
     const val HEIGHT = 8.0f
     const val PPM = 100f                 // px per meter; HUD + window design scale
-    const val WIDTH_PX = WIDTH * PPM     // 480 px design width
-    const val HEIGHT_PX = HEIGHT * PPM   // 800 px design height
+    const val WIDTH_PX = WIDTH * PPM
+    const val HEIGHT_PX = HEIGHT * PPM
     const val TITLE = "YIKERS"
 
     const val PLATFORM_INTERVALS = 1.9f
@@ -17,7 +17,7 @@ object GameConfig {
     const val GRAVITY = -20f            // realtime gravity (m/s^2); YIKES -500 ran at 0.2x sim (-500 * 0.2^2)
     const val SCALING_FACTOR = 0.0017f  // ball-derived scroll scale (from YIKES); px->m /100 folded in
 
-    // entity sizes (meters) — replace YIKES texture-derived sizes. TUNE for feel.
+    // entity sizes (meters). TUNE for feel.
     const val BALL_RADIUS = 0.24f
     const val FOOT_WIDTH = 0.30f
     const val FOOT_HEIGHT = 0.08f

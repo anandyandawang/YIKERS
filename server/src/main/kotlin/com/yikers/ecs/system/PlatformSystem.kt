@@ -17,22 +17,15 @@ import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
-// A landed climber still counts as "above" the slab once its ball bottom clears
-// the top by all but this slop — covers the few-mm rest penetration so a climber
-// resting on the slab reads as above, while a climber deep in the hole does not.
+// Slop so a climber resting on top still reads as "above" the slab.
 private const val BRIDGE_CLEARANCE = 0.05f
 
-// Score on the primary climber's platform clears. Bridge a hole shut only once
-// EVERY living climber has landed on it (foot contact) AND is above it right now,
-// so none is sealed underneath and no resting ball is ejected. Recycle platforms
-// that scrolled below the kill-line and randomly drop a boulder on them.
 class PlatformSystem(
     private val pw: PhysicsWorld = inject(),
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
     private val refs: Refs = inject(),
 ) : IteratingSystem(family { all(PlatformC) }) {
-    // Every living climber (mirror of ControlSystem's percept set).
     private val livePlayers = family { all(Player, Physics).none(Dead) }
 
     override fun onTick() {
@@ -43,7 +36,6 @@ class PlatformSystem(
     override fun onTickEntity(entity: Entity) {
         val p = entity[PlatformC]
 
-        // Scoring tracks the primary climber only.
         val primary = refs.player
         if (primary != null && !p.cleared) {
             val primaryY = primary[Physics].body.position.y
@@ -59,28 +51,18 @@ class PlatformSystem(
             }
         }
 
-        // Close only once EVERY living climber has landed on it (foot contact) AND
-        // is above it right now, matching YIKES' bridge. The landed test means a
-        // climber is RESTING on the slab when it seals -> rebuilt halves snap at the
-        // ball's rest height -> no overlap, no upward eject (the old "teleport up").
-        // The live above test means a climber that landed then FELL BACK below
-        // re-opens the gate, so the slab never seals over a climber beneath it.
+        // Seal only once every living climber landed AND is above now. Landed ->
+        // halves snap at rest height (no eject); above is live so a fall re-opens it.
         if (!p.bridged && allLiveClimbersClear(p)) bridge(entity, p)
         if (p.bridged) easeGap(p)
 
-        val viewBottom = runState.scrollY // kill-line = view bottom edge
+        val viewBottom = runState.scrollY // kill-line = view bottom
         if (p.y + GameConfig.PLATFORM_HEIGHT < viewBottom) {
             recycle(entity, p, p.y + GameConfig.PLATFORM_INTERVALS * GameConfig.NUM_PLATFORMS)
             if (MathUtils.random() < cfg.boulderSpawnChance) dropBoulder(p)
         }
     }
 
-    // True once every living climber has both (a) landed on this slab at least
-    // once AND (b) cleared above it right now (ball bottom over the top). (a) is
-    // sticky, so a fly-through that never landed can't seal it; (b) is live, so a
-    // climber that landed then fell back below re-blocks the seal. Empty live set
-    // -> false (nothing to seal for). Linear scan: a handful of climbers,
-    // contains() on a List uses Entity.equals (no hashCode -> RoboVM-safe).
     private fun allLiveClimbersClear(p: PlatformC): Boolean {
         val top = p.y + GameConfig.PLATFORM_HEIGHT
         var any = false
@@ -94,9 +76,7 @@ class PlatformSystem(
         return any && allClear
     }
 
-    // One-shot: collapse both halves to the hole's centre so the platform reads
-    // solid. The meeting point is where the rendered both-ends tween lands too, so
-    // physics and render end up consistent — physics just gets there instantly.
+    // Collapse both halves to the hole center -> reads solid.
     private fun bridge(entity: Entity, p: PlatformC) {
         val center = p.holeX + p.holeWidth / 2f
         pw.destroyBody(p.leftBody)
@@ -110,7 +90,6 @@ class PlatformSystem(
         p.bridged = true
     }
 
-    // Ease the rendered gap shut from both ends (halves grow toward its center).
     private fun easeGap(p: PlatformC) {
         if (p.holeWidth <= 0f) return
         val center = p.holeX + p.holeWidth / 2f
@@ -123,13 +102,13 @@ class PlatformSystem(
         p.y = newY
         p.cleared = false
         p.bridged = false
-        p.touchedBy.clear() // fresh slab higher up: nobody has landed on it yet
+        p.touchedBy.clear() // fresh slab: nobody landed yet
         p.holeWidth = MathUtils.random(GameConfig.PLATFORM_HOLE_MIN, GameConfig.PLATFORM_HOLE_MAX)
         p.holeX = MathUtils.random(
             GameConfig.PLATFORM_EDGE_MIN,
             GameConfig.WIDTH - p.holeWidth - GameConfig.PLATFORM_EDGE_MIN,
         )
-        // fixtures can't resize, so rebuild the two halves (safe: runs after step).
+        // fixtures can't resize -> rebuild both halves (safe: after step).
         pw.destroyBody(p.leftBody)
         pw.destroyBody(p.rightBody)
         val left = buildPlatformHalf(pw, 0f, p.holeX, newY)

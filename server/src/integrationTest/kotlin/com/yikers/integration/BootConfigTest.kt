@@ -15,8 +15,7 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-// BootConfig reads the RNG seed from system properties at launch. The seed test
-// proves the same seed reproduces the same procedural platform layout.
+// Same seed reproduces the same procedural platform layout.
 @HeadlessGdx
 class BootConfigTest {
 
@@ -36,10 +35,8 @@ class BootConfigTest {
         assertEquals(first, second) { "same seed must yield the same hole layout" }
     }
 
-    // Apply the seed just set, then spawn the platform stack and read each slab's
-    // hole X. A systemless world suffices: spawnPlatform only needs the factory.
     private fun platformHoles(): List<Float> {
-        BootConfig.apply() // applies MathUtils.random seed from yikers.seed
+        BootConfig.apply()
         val pw = physicsWorld(gravityScale = 0f)
         val cfg = RunConfig()
         val refs = Refs()

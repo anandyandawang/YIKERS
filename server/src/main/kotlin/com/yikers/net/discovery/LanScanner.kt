@@ -6,9 +6,8 @@ import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.SocketTimeoutException
 
-// Client-side LAN discovery: broadcasts one query, then collects ServerAd replies for
-// a short window, de-duping by host:port. Blocking — callers run it off the render
-// thread. Returns whatever answered before the deadline (empty if none / UDP blocked).
+// Client-side LAN discovery: broadcast one query, collect ServerAd replies for a
+// short window (de-duped by host:port). Blocking -> run off the render thread.
 object LanScanner {
     private const val BROADCAST = "255.255.255.255"
 

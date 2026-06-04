@@ -15,28 +15,24 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.LockSupport
 import kotlin.concurrent.thread
 
-// The LAN server: wraps the embedded GameInstance and serves ONE room over a socket.
-// Owns the clock (60Hz tick thread: drain input, step, snapshot, broadcast); an
-// acceptor handshakes clients into dynamic slots; a UDP responder answers discovery.
-// Knows NOTHING about who connects — human or bot is meaningless here.
+// LAN server: wraps the GameInstance, serves ONE room over a socket. Owns the clock
+// (60Hz tick thread); an acceptor handshakes clients; a UDP responder answers discovery.
 class DedicatedServer(
     val name: String,
     tcpPort: Int,
     private val cfg: SessionConfig,
     private val maxPlayers: Int = DEFAULT_MAX_PLAYERS,
 ) {
-    // The authoritative session — the same code singleplayer runs in-process.
     private val host = LocalHost()
     private val room = host.open(cfg)
     private val instance = host.instance(room)
 
     private val serverSocket = ServerSocket(tcpPort) // port 0 => OS-assigned ephemeral
 
-    // Connected socket clients. Guarded by `conns` itself for iteration.
+    // Guarded by `conns` itself for iteration.
     private val conns = ArrayList<ClientConn>()
 
-    // Inbound input is funnelled here from reader threads and drained on the tick
-    // thread, so all sim mutation stays single-threaded.
+    // Drained on the tick thread so all sim mutation stays single-threaded.
     private val inbound = ConcurrentLinkedQueue<InputCommand>()
 
     @Volatile
@@ -46,13 +42,11 @@ class DedicatedServer(
     private var ticker: Thread? = null
     private var responder: DiscoveryResponder? = null
 
-    // The resolved TCP port (meaningful after construction; ephemeral when 0 passed).
-    val port: Int get() = serverSocket.localPort
+    val port: Int get() = serverSocket.localPort // ephemeral when 0 passed
 
     val playerCount: Int get() = instance.players
 
-    // Most recent broadcast frame, published by the tick thread for safe cross-thread
-    // reads (monitoring / tests). Null until the first tick.
+    // Latest broadcast frame, published for cross-thread reads (monitoring/tests).
     @Volatile
     var latestSnapshot: WorldSnapshot? = null
         private set
@@ -80,8 +74,6 @@ class DedicatedServer(
         }
     }
 
-    // Read the client's Join, assign a dynamic player slot (or Reject if the room is
-    // full), reply Welcome, then register the connection for input + broadcast.
     private fun handshake(socket: Socket) {
         try {
             socket.tcpNoDelay = true
@@ -120,8 +112,7 @@ class DedicatedServer(
         val stepNanos = 1_000_000_000L / TICK_HZ
         var next = System.nanoTime()
         while (running) {
-            // Drain all queued input first (jump is latched server-side, so applying
-            // several commands before one step never drops an edge press).
+            // Drain all queued input first (jump latch survives many commands/step).
             while (true) {
                 val cmd = inbound.poll() ?: break
                 instance.applyInput(cmd)
@@ -146,8 +137,7 @@ class DedicatedServer(
             conns.forEach { it.close() }
             conns.clear()
         }
-        // Closing serverSocket wakes accept() with an exception; wait for both worker
-        // threads to actually exit before tearing the room down.
+        // serverSocket.close() wakes accept(); wait for both workers before teardown.
         acceptor?.let { runCatching { it.join(500) } }
         ticker?.let { runCatching { it.join(500) } }
         host.close(room)

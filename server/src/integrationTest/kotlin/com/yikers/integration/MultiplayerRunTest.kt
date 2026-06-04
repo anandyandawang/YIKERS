@@ -12,9 +12,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// DeathSystem run-end semantics with a multi-climber roster: a climber that falls
-// below the rising kill-line is marked Dead, but the RUN ends only once no living
-// climber remains. Two bots; we drop them below the kill-line one at a time.
+// A climber below the kill-line dies, but the run ends only when none live.
 @HeadlessGdx
 class MultiplayerRunTest {
 
@@ -25,20 +23,16 @@ class MultiplayerRunTest {
             assertFalse(h.runState.dead) { "run starts with both climbers alive" }
 
             val (a, b) = h.climbers
-            // Drop climber A below the kill-line -> A dies, run keeps going.
             dropBelowKillLine(h, a)
             h.world.step(1)
             assertFalse(h.runState.dead) { "run must continue while one climber lives" }
 
-            // Drop the last climber -> no living climber remains -> run ends.
             dropBelowKillLine(h, b)
             h.world.step(1)
             assertTrue(h.runState.dead) { "run must end once every climber is dead" }
         }
     }
 
-    // Teleport a climber a meter under the kill-line (view bottom); DeathSystem
-    // reaps anything with ballY < scrollY on the next tick.
     private fun dropBelowKillLine(h: SimHarness, e: Entity) {
         with(h.world) {
             e[Physics].body.setTransform(GameConfig.WIDTH / 2f, h.runState.scrollY - 1f, 0f)

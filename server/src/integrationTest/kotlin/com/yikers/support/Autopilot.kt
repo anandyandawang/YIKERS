@@ -22,22 +22,17 @@ import com.yikers.ecs.component.Physics
 import com.yikers.ecs.resource.RunState
 import kotlin.math.abs
 
-// Test-only server-side autopilot: drives the headless sim through the ECS (no
-// snapshot loop) into the SAME shared BotBrain, so the algorithm stays single-sourced
-// while production stays relay-only.
-
-// Holder: carries this climber's percept; AutopilotSystem fills it and decides.
+// Test autopilot: drives the headless sim through the ECS into the shared BotBrain,
+// keeping the algorithm single-sourced with production.
 class AutopilotController : Controller {
     val self = BotSelf()
     val view = BotView()
 
-    // Unused in the autopilot path (AutopilotSystem writes Intent directly), but
-    // satisfies the Controller seam EntityFactory.spawnPlayer requires.
+    // Unused: AutopilotSystem writes Intent directly. Satisfies the Controller seam.
     override fun decide(ctx: ControlContext): Move = Move(0f, false)
 }
 
-// The old ControlSystem bot branch, in test support: fill each autopilot climber's
-// BotView from the ECS and write the BotBrain's decision to Intent.
+// Fills each autopilot climber's BotView from the ECS, writes BotBrain's decision.
 class AutopilotSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),

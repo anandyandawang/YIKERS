@@ -2,9 +2,7 @@ package com.yikers.net
 
 import com.yikers.sim.GameInstance
 
-// In-process GameSession: forwards straight to the GameInstance, bound to one slot
-// (allocated at join). close() drops this client's player; the room itself is owned
-// by the host.
+// In-process GameSession: forwards to the GameInstance for one slot.
 class LocalGameSession(
     private val instance: GameInstance,
     override val playerId: Int,

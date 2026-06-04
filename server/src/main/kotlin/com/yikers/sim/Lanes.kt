@@ -2,10 +2,7 @@ package com.yikers.sim
 
 import com.yikers.config.GameConfig
 
-// Deterministic spawn lane (ball-center X, meters) per player slot — pure function
-// of the slot, so it works with dynamic join. Slot 0 = center, then alternate
-// outward (1 right, 2 left, 3 right, ...) at >diameter spacing so climbers never
-// spawn overlapping. Clamped to the play area for large counts.
+// Deterministic spawn lane (ball-center X) per slot: 0 = center, alternate outward.
 fun laneX(slot: Int): Float {
     val r = GameConfig.BALL_RADIUS
     val minCx = GameConfig.WALL_THICKNESS + r

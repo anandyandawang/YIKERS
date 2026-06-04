@@ -21,17 +21,12 @@ import ktx.app.KtxScreen
 import java.net.InetAddress
 import kotlin.concurrent.thread
 
-// Multiplayer lobby: broadcasts a LAN discovery query, lists the servers that answer
-// as clickable rows, and offers Host (start an in-process server + join it), Join
-// 127.0.0.1 (direct-connect fallback when UDP discovery is filtered, e.g. the
-// one-machine demo), Refresh, and Back. Same asset-free ShapeRenderer + font style as
-// the menu. Selecting any target stashes it in Session and switches to PlayScreen.
+// Multiplayer lobby: LAN discovery rows + Host / Join 127.0.0.1 / Refresh / Back.
 class LobbyScreen(private val game: YikersGame) : KtxScreen {
     private val viewport = ExtendViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX)
     private val layout = GlyphLayout()
     private val touch = Vector2()
 
-    // Discovered servers + their on-screen row rects, both rebuilt each scan/frame.
     @Volatile
     private var servers: List<DiscoveredServer> = emptyList()
 
@@ -149,10 +144,7 @@ class LobbyScreen(private val game: YikersGame) : KtxScreen {
         }
     }
 
-    // Start an in-process server and join it as a human client. Bots, if wanted, are
-    // separate :bot socket clients pointed at this port — the server can't tell them
-    // from people. Prefer the well-known port (direct-connect when discovery is
-    // blocked); fall back to ephemeral if taken.
+    // Start an in-process server + join it. Well-known port, else ephemeral.
     private fun startHost() {
         val cfg = SessionConfig()
         val name = "Host @ ${hostName()}"

@@ -3,7 +3,6 @@ package com.yikers.ecs.component
 import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType
 
-// Rolling hazard marker + current signed speed.
 data class BoulderC(
     var speed: Float = 0f,
 ) : Component<BoulderC> {

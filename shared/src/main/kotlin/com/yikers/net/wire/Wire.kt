@@ -5,9 +5,7 @@ import kotlinx.serialization.cbor.Cbor
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 
-// One shared CBOR codec for the whole protocol. CBOR (not JSON): compact binary,
-// no float<->text precision loss, ideal for 60Hz snapshots over the socket. Switch
-// to Json here in one place if a human-readable trace is ever needed.
+// Shared CBOR codec (compact binary, good for 60Hz snapshots).
 @OptIn(ExperimentalSerializationApi::class)
 object Wire {
     private val cbor = Cbor {
@@ -18,7 +16,6 @@ object Wire {
 
     fun decode(bytes: ByteArray): Envelope = cbor.decodeFromByteArray(bytes)
 
-    // Discovery rides UDP, not the TCP Envelope stream, so it gets its own helpers.
     fun encodeAd(ad: ServerAd): ByteArray = cbor.encodeToByteArray(ad)
 
     fun decodeAd(bytes: ByteArray): ServerAd = cbor.decodeFromByteArray(bytes)

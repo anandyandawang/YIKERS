@@ -9,7 +9,6 @@ import com.yikers.ecs.component.BoulderC
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.resource.RunState
 
-// Boulders roll, bounce off the side walls.
 class BoulderSystem(
     private val runState: RunState = inject(),
 ) : IteratingSystem(family { all(BoulderC, Physics) }) {
