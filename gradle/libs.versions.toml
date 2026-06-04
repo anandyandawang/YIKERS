@@ -6,6 +6,7 @@ ktx = "1.13.1-rc1"
 fleks = "2.14"
 junit = "5.11.4"
 kotlin = "2.3.21"
+kotlinxSerialization = "1.9.0"
 robovm = "2.3.24"
 agp = "8.7.3"
 
@@ -28,6 +29,9 @@ ktx-math = { module = "io.github.libktx:ktx-math", version.ref = "ktx" }
 
 fleks = { module = "io.github.quillraven.fleks:Fleks", version.ref = "fleks" }
 
+# CBOR wire format for LAN net play. Pure-Kotlin, no Gdx — keeps :shared engine-free.
+kotlinx-serialization-cbor = { module = "org.jetbrains.kotlinx:kotlinx-serialization-cbor", version.ref = "kotlinxSerialization" }
+
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 # No version: pulled in by junit-jupiter alignment at test runtime.
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
@@ -37,5 +41,6 @@ robovm-cocoatouch = { module = "com.mobidevelop.robovm:robovm-cocoatouch", versi
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 android-application = { id = "com.android.application", version.ref = "agp" }

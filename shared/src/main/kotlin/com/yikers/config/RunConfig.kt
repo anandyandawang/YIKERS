@@ -1,7 +1,10 @@
 package com.yikers.config
 
+import kotlinx.serialization.Serializable
+
 // Per-run feel + spawn knobs. MUTABLE so items/events/characters tweak live.
 // [SEAM] roguelike layer mutates this; every system reads feel numbers here.
+@Serializable
 data class RunConfig(
     // FEEL SCALE: physics runs at true 1.0x realtime. YIKES ran its sim at 0.2x
     // realtime (one 1/300s Box2D step per frame @60fps), so to keep the same

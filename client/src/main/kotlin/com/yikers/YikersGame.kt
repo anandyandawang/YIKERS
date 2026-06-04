@@ -9,6 +9,7 @@ import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.FitViewport
 import com.yikers.config.GameConfig
+import com.yikers.screen.LobbyScreen
 import com.yikers.screen.MenuScreen
 import com.yikers.screen.PlayScreen
 import ktx.app.KtxGame
@@ -36,6 +37,7 @@ class YikersGame : KtxGame<KtxScreen>() {
 
     override fun create() {
         addScreen(MenuScreen(this))
+        addScreen(LobbyScreen(this))
         addScreen(PlayScreen(this))
         setScreen<MenuScreen>()
     }
