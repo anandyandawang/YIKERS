@@ -16,7 +16,10 @@ import com.yikers.control.Roster
 import com.yikers.net.GameHost
 import com.yikers.net.GameSession
 import com.yikers.net.LocalHost
+import com.yikers.net.NetworkGameSession
+import com.yikers.net.NetworkHost
 import com.yikers.net.RoomId
+import com.yikers.net.Session
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
 import com.yikers.render.SnapshotRenderer
@@ -66,15 +69,39 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
             seed = BootConfig.seed,
             previousHighScore = Prefs.highScore,
         )
-        speed = cfg.runConfig.horizontalSpeed
-        // One local human per roster slot (all on ARROWS for now, as before).
-        humanInputs = List(Roster.humans) { HumanInput(it) }
 
-        val h = LocalHost()
-        val r = h.open(cfg)
+        // Same seam, two hosts: LocalHost embeds the sim (singleplayer, unchanged),
+        // NetworkHost connects to a LAN server. For network the server already opened
+        // the room, so open() returns a sentinel and join() does the handshake.
+        val h: GameHost = if (Session.mode == Session.Mode.NETWORK) {
+            NetworkHost(Session.host, Session.port)
+        } else {
+            LocalHost()
+        }
+        val s = try {
+            val r = h.open(cfg)
+            val sess = h.join(r)
+            room = r
+            sess
+        } catch (e: Exception) {
+            // Server unreachable / refused -> drop back to the lobby instead of crashing.
+            Gdx.app.error("YIKERS", "join failed", e)
+            game.setScreen<LobbyScreen>()
+            return
+        }
         host = h
-        room = r
-        session = h.join(r)
+        session = s
+
+        if (s is NetworkGameSession) {
+            // The server assigned our player slot and owns the run params; drive only
+            // our own climber, read feel from the Welcome config.
+            speed = s.config.runConfig.horizontalSpeed
+            humanInputs = listOf(HumanInput(s.playerId))
+        } else {
+            speed = cfg.runConfig.horizontalSpeed
+            // One local human per roster slot (all on ARROWS for now, as before).
+            humanInputs = List(Roster.humans) { HumanInput(it) }
+        }
     }
 
     override fun render(delta: Float) {
@@ -152,8 +179,10 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     override fun dispose() = teardown()
 
     private fun teardown() {
-        val h = host ?: return
-        room?.let { h.close(it) }
+        // Close the session first: for a network client this shuts the socket + reader
+        // thread (no-op for the local session). Then drop the room on the host.
+        session?.close()
+        host?.let { h -> room?.let { h.close(it) } }
         host = null
         room = null
         session = null

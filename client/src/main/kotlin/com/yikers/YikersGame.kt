@@ -9,6 +9,8 @@ import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.FitViewport
 import com.yikers.config.GameConfig
+import com.yikers.net.Session
+import com.yikers.screen.LobbyScreen
 import com.yikers.screen.MenuScreen
 import com.yikers.screen.PlayScreen
 import ktx.app.KtxGame
@@ -36,8 +38,18 @@ class YikersGame : KtxGame<KtxScreen>() {
 
     override fun create() {
         addScreen(MenuScreen(this))
+        addScreen(LobbyScreen(this))
         addScreen(PlayScreen(this))
-        setScreen<MenuScreen>()
+        // Optional quick-connect: -Dyikers.connect=host:port jumps straight into a
+        // network run (skips the menu/lobby). Handy for launching a connected client
+        // from the CLI / a two-client demo. Default (unset) shows the menu as before.
+        val connect = System.getProperty("yikers.connect")?.parseHostPort()
+        if (connect != null) {
+            Session.network(connect.first, connect.second)
+            setScreen<PlayScreen>()
+        } else {
+            setScreen<MenuScreen>()
+        }
     }
 
     override fun render() {
@@ -86,4 +98,13 @@ class YikersGame : KtxGame<KtxScreen>() {
         shape.dispose()
         font.dispose()
     }
+}
+
+// "host:port" -> (host, port), or null if malformed. Host defaults nowhere; port must
+// parse. Used only by the -Dyikers.connect quick-connect path.
+private fun String.parseHostPort(): Pair<String, Int>? {
+    val i = lastIndexOf(':')
+    if (i <= 0 || i == length - 1) return null
+    val port = substring(i + 1).toIntOrNull() ?: return null
+    return substring(0, i) to port
 }
