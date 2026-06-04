@@ -2,14 +2,28 @@ name: CI
 
 on:
   push:
-  pull_request:
+    branches: [main]   # post-merge / direct-to-main only; PR branches run via pull_request
+  pull_request:        # all PR branches: re-runs on each push (synchronize), covers forks
   workflow_dispatch:
 
 jobs:
-  headless-test:
-    name: Headless integration test (macOS)
+  # Unit + integration run as separate parallel jobs (matrix), each with its own
+  # Gradle task + uploaded report. fail-fast off so one failing set never cancels
+  # the other -> both signals always land.
+  test:
+    name: ${{ matrix.name }} tests (macOS)
     runs-on: macos-latest          # 3-core Apple silicon, free for public repos
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: unit
+            task: core:test
+            report: core/build/reports/tests/test
+          - name: integration
+            task: core:integrationTest
+            report: core/build/reports/tests/integrationTest
     steps:
       - uses: actions/checkout@v4
 
@@ -20,13 +34,13 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      - name: Run headless integration test
-        run: ./gradlew core:test --no-daemon --stacktrace
+      - name: Run ${{ matrix.name }} tests
+        run: ./gradlew ${{ matrix.task }} --no-daemon --stacktrace
 
-      - name: Upload test report
+      - name: Upload ${{ matrix.name }} test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: core-test-report
-          path: core/build/reports/tests/test
+          name: ${{ matrix.name }}-test-report
+          path: ${{ matrix.report }}
           if-no-files-found: ignore
