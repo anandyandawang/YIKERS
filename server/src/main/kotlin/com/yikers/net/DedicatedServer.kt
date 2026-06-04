@@ -7,6 +7,7 @@ import com.yikers.net.wire.Rejected
 import com.yikers.net.wire.Snapshot
 import com.yikers.net.wire.Welcome
 import com.yikers.net.wire.Wire
+import com.yikers.sim.GameInstance
 import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.InetAddress
@@ -26,9 +27,8 @@ class DedicatedServer(
     // false => loopback-only, no LAN advertise.
     val discoverable: Boolean = true,
 ) {
-    private val host = LocalHost()
-    private val room = host.open(cfg)
-    private val instance = host.instance(room)
+    // Single room: every client shares this one world.
+    private val instance = GameInstance(cfg)
 
     // Private: loopback only. IPv4 127.0.0.1 to match the client dial.
     private val serverSocket =
@@ -149,7 +149,7 @@ class DedicatedServer(
         // serverSocket.close() wakes accept(); wait for both workers before teardown.
         acceptor?.let { runCatching { it.join(500) } }
         ticker?.let { runCatching { it.join(500) } }
-        host.close(room)
+        instance.close()
     }
 
     companion object {
