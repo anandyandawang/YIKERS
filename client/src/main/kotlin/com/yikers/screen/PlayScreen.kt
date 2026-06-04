@@ -13,7 +13,6 @@ import com.yikers.config.Prefs
 import com.yikers.control.BootConfig
 import com.yikers.control.HumanAgent
 import com.yikers.net.GameHost
-import com.yikers.net.GameSession
 import com.yikers.net.LocalHost
 import com.yikers.net.NetworkGameSession
 import com.yikers.net.NetworkHost
@@ -45,9 +44,8 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
 
     private var host: GameHost? = null
     private var room: RoomId? = null
-    // Joined clients (human + bots, same type). The first owns the clock.
-    private var participants: List<Participant> = emptyList()
-    private var clock: GameSession? = null
+    // This client (always exactly one human). Its session owns the clock.
+    private var human: Participant? = null
     private var speed = 0f
 
     private var persisted = false
@@ -96,27 +94,24 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         val s = h.join(r)
         speed = (s as? NetworkGameSession)?.config?.runConfig?.horizontalSpeed
             ?: cfg.runConfig.horizontalSpeed
-        clock = s
-        participants = listOf(Participant(s, HumanAgent(speed)))
+        human = Participant(s, HumanAgent(speed))
     }
 
     // Local run: one human client on the embedded room. Bots, if any, are separate
     // :bot socket clients against a server — never spawned here.
     private fun joinLocal(h: GameHost, r: RoomId, cfg: SessionConfig) {
         speed = cfg.runConfig.horizontalSpeed
-        val s = h.join(r)
-        participants = listOf(Participant(s, HumanAgent(speed)))
-        clock = s
+        human = Participant(h.join(r), HumanAgent(speed))
     }
 
     override fun render(delta: Float) {
-        val clock = clock ?: return
+        val human = human ?: return
         ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
         viewport.apply()
 
-        participants.forEach { it.pump(delta) }   // every client decides + submits
-        clock.step(delta)
-        val snap = clock.snapshot()
+        human.pump(delta)                 // decide + submit our input
+        human.session.step(delta)         // local: advances the sim; network: no-op
+        val snap = human.session.snapshot()
 
         // Center on the kill-line using OUR local view height — never sent to the
         // server, so two clients on different aspects each frame their own view.
@@ -180,12 +175,11 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     override fun dispose() = teardown()
 
     private fun teardown() {
-        // Close clients (network: socket; local: drops the player), then the room.
-        participants.forEach { it.close() }
+        // Close our session (network: our socket; local: drops our player), then the room.
+        human?.close()
         host?.let { h -> room?.let { h.close(it) } }
         host = null
         room = null
-        participants = emptyList()
-        clock = null
+        human = null
     }
 }
