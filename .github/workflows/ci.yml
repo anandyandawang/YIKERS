@@ -19,11 +19,11 @@ jobs:
       matrix:
         include:
           - name: unit
-            task: core:test
-            report: core/build/reports/tests/test
+            task: server:test
+            report: server/build/reports/tests/test
           - name: integration
-            task: core:integrationTest
-            report: core/build/reports/tests/integrationTest
+            task: server:integrationTest
+            report: server/build/reports/tests/integrationTest
     steps:
       - uses: actions/checkout@v4
 

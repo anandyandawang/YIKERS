@@ -10,7 +10,7 @@ plugins {
 apply(plugin = "robovm")
 
 dependencies {
-    implementation(project(":core"))
+    implementation(project(":client"))
     // ktx-app: YikersGame extends KtxGame, so launcher needs that type chain.
     implementation(libs.ktx.app)
     implementation(libs.gdx.backend.robovm)
