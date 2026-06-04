@@ -1,34 +1,34 @@
 package com.yikers.integration
 
-import com.yikers.bot.app.BotRunner
+import com.yikers.bot.BotAgent
+import com.yikers.config.RunConfig
 import com.yikers.net.DedicatedServer
+import com.yikers.net.Participant
 import com.yikers.net.SessionConfig
 import com.yikers.support.HeadlessGdx
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// The server has NO bot concept. This proves a bot reaches it as an ordinary socket
-// client (BotRunner -> NetworkHost -> the wire) and DRIVES the shared world: boot a
-// real DedicatedServer with no bot code, point a BotRunner at its port, and watch
-// the published score climb. Score is read straight from the server's latest
-// snapshot — no extra observer client (a second idle ball would block the lone bot).
+// In-process bots: a bot client lives in the server's own process and is pumped on
+// the authoritative tick thread (~1 tick of lag, no socket round-trip). The server
+// stays bot-blind: it just hands out a generic localSession() slot and pumps an
+// opaque callback. Score is read from the server's published latest snapshot (no
+// extra observer client, which would spawn a second ball in the lone bot's path).
 @HeadlessGdx
-class NetworkBotTest {
+class InProcessBotTest {
 
     @Test
-    fun botClientClimbsOverTheSocket() {
+    fun inProcessBotClimbsOnTheServer() {
         val server = DedicatedServer(name = "test", tcpPort = 0, cfg = SessionConfig(seed = SEED))
+        val bot = Participant(server.localSession(), BotAgent(RunConfig()))
+        server.addLocalPump(bot::pump)
         server.start()
-
-        val bots = BotRunner("127.0.0.1", server.port, count = 1)
-        bots.start()
         try {
-            val climbed = awaitScore(server, target = 1, timeoutMs = 12_000)
+            val climbed = awaitScore(server, target = 1, timeoutMs = 10_000)
             assertTrue(climbed) {
-                "a socket-connected bot must climb + score; score=${server.latestSnapshot?.score}"
+                "an in-process bot must climb + score; score=${server.latestSnapshot?.score}"
             }
         } finally {
-            bots.stop()
             server.stop()
         }
     }

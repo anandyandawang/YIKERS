@@ -43,6 +43,11 @@ class DedicatedServer(
     // thread, so all sim mutation stays single-threaded.
     private val inbound = ConcurrentLinkedQueue<InputCommand>()
 
+    // In-process clients pumped each tick on the authoritative thread. Opaque
+    // callbacks: the server never inspects what's behind them (human, bot, recorder)
+    // — it only ever sees the InputCommands they submit through their session.
+    private val localPumps = java.util.concurrent.CopyOnWriteArrayList<(Float) -> Unit>()
+
     @Volatile
     private var running = false
 
@@ -54,6 +59,26 @@ class DedicatedServer(
     val port: Int get() = serverSocket.localPort
 
     val playerCount: Int get() = instance.players
+
+    // The most recent broadcast frame (immutable), published by the tick thread for
+    // safe cross-thread reads (monitoring / tests) — never touch the live world off
+    // the tick thread. Null until the first tick.
+    @Volatile
+    var latestSnapshot: WorldSnapshot? = null
+        private set
+
+    // An in-process client handle: its own player slot on this server, reached with
+    // NO socket. The caller wraps it (e.g. a Participant with some InputAgent) and
+    // registers its per-tick pump via addLocalPump. The server stays oblivious to
+    // what the client is — it only ever sees the InputCommands it submits.
+    fun localSession(): GameSession = LocalGameSession(instance, instance.addPlayer())
+
+    // Register a callback pumped once per tick on the authoritative thread, so its
+    // input lands in the very next step (~1 tick of lag, no socket round-trip). The
+    // server never inspects it.
+    fun addLocalPump(pump: (Float) -> Unit) {
+        localPumps.add(pump)
+    }
 
     fun start() {
         running = true
@@ -124,8 +149,12 @@ class DedicatedServer(
                 val cmd = inbound.poll() ?: break
                 instance.applyInput(cmd)
             }
+            // In-process clients decide + submit now, so their input lands this step
+            // (~1 tick of lag) instead of a socket round-trip's worth.
+            localPumps.forEach { it(DT) }
             instance.tick(DT)
             val snap = instance.snapshot()
+            latestSnapshot = snap
             val targets = synchronized(conns) { conns.toList() }
             targets.forEach { it.send(Snapshot(snap)) }
 

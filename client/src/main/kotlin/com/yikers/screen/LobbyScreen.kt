@@ -10,8 +10,11 @@ import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.yikers.YikersGame
+import com.yikers.bot.BotAgent
 import com.yikers.config.GameConfig
+import com.yikers.control.BootConfig
 import com.yikers.net.DedicatedServer
+import com.yikers.net.Participant
 import com.yikers.net.Session
 import com.yikers.net.SessionConfig
 import com.yikers.net.discovery.DEFAULT_TCP_PORT
@@ -149,8 +152,11 @@ class LobbyScreen(private val game: YikersGame) : KtxScreen {
         }
     }
 
-    // Start an in-process server (humans=2) and immediately join it as player 0. Other
+    // Start an in-process server and immediately join it as a human client. Other
     // clients find it via discovery, or direct-connect to 127.0.0.1 on the same box.
+    // BootConfig.bots in-process bot clients are attached to the hosted server: they
+    // get a slot via the server's generic localSession() and are pumped on its tick
+    // thread (~1-tick lag, so they actually climb). The server stays bot-blind.
     private fun startHost() {
         val cfg = SessionConfig()
         val name = "Host @ ${hostName()}"
@@ -158,6 +164,10 @@ class LobbyScreen(private val game: YikersGame) : KtxScreen {
         // if UDP discovery is blocked; fall back to an ephemeral port if it's taken.
         val server = runCatching { DedicatedServer(name, DEFAULT_TCP_PORT, cfg) }
             .getOrElse { DedicatedServer(name, 0, cfg) }
+        repeat(BootConfig.bots) {
+            val bot = Participant(server.localSession(), BotAgent(cfg.runConfig))
+            server.addLocalPump(bot::pump)
+        }
         server.start()
         Session.setHosted(server)
         joinTarget("127.0.0.1", server.port)

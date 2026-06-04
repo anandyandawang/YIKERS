@@ -13,7 +13,6 @@ import com.yikers.config.GameConfig
 import com.yikers.config.Prefs
 import com.yikers.control.BootConfig
 import com.yikers.control.HumanAgent
-import com.yikers.control.Roster
 import com.yikers.net.GameHost
 import com.yikers.net.GameSession
 import com.yikers.net.LocalHost
@@ -57,12 +56,10 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     private var clock: GameSession? = null
     private var speed = 0f
 
-    private var deadElapsed = 0f
     private var persisted = false
 
     override fun show() {
         teardown()
-        deadElapsed = 0f
         persisted = false
 
         camera.position.set(GameConfig.WIDTH / 2f, GameConfig.HEIGHT / 2f, 0f)
@@ -111,19 +108,16 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         participants = listOf(Participant(s, HumanAgent(speed)))
     }
 
-    // Local run: one client per local human + one per local bot, all on this room.
-    // Empty roster (0 humans, 0 bots) falls back to a lone bot = hands-free attract.
-    // Bots are in-process clients here, but the embedded server never knows that —
-    // each is just a join() + a Participant whose agent happens to be a BotAgent.
+    // Local run: exactly one human client, plus BootConfig.bots in-process bot
+    // clients on the same embedded room. The bots are pumped right here in the render
+    // loop (~1-tick lag), but the embedded server never knows they're bots — each is
+    // just a join() + a Participant whose agent happens to be a BotAgent.
     private fun joinLocal(h: GameHost, r: RoomId, cfg: SessionConfig) {
         speed = cfg.runConfig.horizontalSpeed
-        val humanCount = Roster.humans
-        val botCount = if (Roster.humans == 0 && Roster.bots == 0) 1 else Roster.bots
-
-        val humans = List(humanCount) { Participant(h.join(r), HumanAgent(speed)) }
-        val bots = List(botCount) { Participant(h.join(r), BotAgent(cfg.runConfig)) }
-        participants = humans + bots
-        clock = participants.firstOrNull()?.session
+        val human = Participant(h.join(r), HumanAgent(speed))
+        val bots = List(BootConfig.bots) { Participant(h.join(r), BotAgent(cfg.runConfig)) }
+        participants = listOf(human) + bots
+        clock = participants.first().session
     }
 
     override fun render(delta: Float) {
@@ -177,17 +171,13 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     }
 
     // On death: persist the high score once (server tracks the in-run max; the
-    // client owns the saved Prefs). Hands-free returns to the menu (which auto-
-    // starts again) after a beat; otherwise wait for a key/tap.
+    // client owns the saved Prefs), then wait for a key/tap to return to the menu.
     private fun handleGameOver(delta: Float, snap: WorldSnapshot) {
         if (!persisted) {
             if (snap.highScore > Prefs.highScore) Prefs.highScore = snap.highScore
             persisted = true
         }
-        if (Roster.handsFree) {
-            deadElapsed += delta
-            if (deadElapsed >= AUTO_RESTART_DELAY) game.setScreen<MenuScreen>()
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) || Gdx.input.justTouched()) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) || Gdx.input.justTouched()) {
             game.setScreen<MenuScreen>()
         }
     }
@@ -212,9 +202,5 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         room = null
         participants = emptyList()
         clock = null
-    }
-
-    companion object {
-        private const val AUTO_RESTART_DELAY = 1.5f
     }
 }

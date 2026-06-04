@@ -4,7 +4,6 @@ import com.github.quillraven.fleks.configureWorld
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
 import com.yikers.control.BootConfig
-import com.yikers.control.Roster
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.resource.Refs
@@ -14,34 +13,27 @@ import com.yikers.support.TestWorld
 import com.yikers.support.physicsWorld
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// BootConfig reads the roster + RNG seed from system properties at launch. Roster
-// is a global object, so each test resets it afterwards. The seed test proves the
-// same seed reproduces the same procedural platform layout.
+// BootConfig reads the bot count + RNG seed from system properties at launch (there
+// is no humans count: 1 client == 1 player). The seed test proves the same seed
+// reproduces the same procedural platform layout.
 @HeadlessGdx
 class BootConfigTest {
 
     @AfterEach
     fun reset() {
-        System.clearProperty("yikers.humans")
         System.clearProperty("yikers.bots")
         System.clearProperty("yikers.seed")
-        Roster.humans = 1
-        Roster.bots = 0
     }
 
     @Test
-    fun rosterReadsFromSystemProperties() {
-        System.setProperty("yikers.humans", "0")
+    fun botCountReadsFromSystemProperties() {
         System.setProperty("yikers.bots", "3")
 
         BootConfig.apply()
 
-        assertEquals(0, Roster.humans) { "humans must read from yikers.humans" }
-        assertEquals(3, Roster.bots) { "bots must read from yikers.bots" }
-        assertTrue(Roster.handsFree) { "0 humans = hands-free" }
+        assertEquals(3, BootConfig.bots) { "bots must read from yikers.bots" }
     }
 
     @Test
