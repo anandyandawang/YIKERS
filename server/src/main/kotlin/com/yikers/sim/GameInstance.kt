@@ -195,6 +195,7 @@ class GameInstance(private val cfg: SessionConfig) {
                 ents += EntitySnap(
                     rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
                     t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
+                    id = e.id,
                     playerId = slotByEntity[e] ?: -1,
                 )
             }

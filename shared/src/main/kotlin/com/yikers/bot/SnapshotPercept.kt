@@ -23,10 +23,9 @@ class SnapshotPercept(private val runConfig: RunConfig) {
     private var haveSelf = false
     private var lastSelfY = 0f
 
-    // Previous boulder centers, for nearest-match frame differencing.
-    private var prevBoulderX = FloatArray(0)
-    private var prevBoulderY = FloatArray(0)
-    private var prevBoulderN = 0
+    // Previous boulder centers keyed by stable entity id, for frame differencing.
+    private val prevBoulderX = HashMap<Int, Float>()
+    private val prevBoulderY = HashMap<Int, Float>()
 
     private val gravity = abs(GameConfig.GRAVITY * runConfig.gravityScale)
 
@@ -90,8 +89,10 @@ class SnapshotPercept(private val runConfig: RunConfig) {
         view.supportHoleWidth = if (supY == -Float.MAX_VALUE) 0f else supW
     }
 
-    // Boulders = the non-player circles (playerId < 0). Velocity by nearest-match
-    // against the previous frame's centers (boulders carry no ids).
+    // Boulders = the non-player circles (playerId < 0). Velocity by differencing
+    // this frame's center against the SAME boulder's last center, matched by stable
+    // entity id. A recycled boulder teleports to a new platform; that one-frame jump
+    // is implausibly large, so clamp it to zero rather than report a bogus spike.
     private fun fillBoulders(entities: List<EntitySnap>, dt: Float) {
         var n = 0
         for (e in entities) {
@@ -99,18 +100,14 @@ class SnapshotPercept(private val runConfig: RunConfig) {
             if (e.kind != ShapeKind.CIRCLE || e.playerId >= 0) continue  // not a boulder
             view.boulderX[n] = e.x
             view.boulderY[n] = e.y
-            if (dt > 0f && prevBoulderN > 0) {
-                var bestD = Float.MAX_VALUE
-                var px = e.x
-                var py = e.y
-                for (j in 0 until prevBoulderN) {
-                    val dx = e.x - prevBoulderX[j]
-                    val dy = e.y - prevBoulderY[j]
-                    val d = dx * dx + dy * dy
-                    if (d < bestD) { bestD = d; px = prevBoulderX[j]; py = prevBoulderY[j] }
-                }
-                view.boulderVx[n] = (e.x - px) / dt
-                view.boulderVy[n] = (e.y - py) / dt
+            val px = prevBoulderX[e.id]
+            val py = prevBoulderY[e.id]
+            if (dt > 0f && px != null && py != null) {
+                val vx = (e.x - px) / dt
+                val vy = (e.y - py) / dt
+                val recycled = abs(e.x - px) > MAX_PLAUSIBLE_STEP || abs(e.y - py) > MAX_PLAUSIBLE_STEP
+                view.boulderVx[n] = if (recycled) 0f else vx
+                view.boulderVy[n] = if (recycled) 0f else vy
             } else {
                 view.boulderVx[n] = 0f
                 view.boulderVy[n] = 0f
@@ -119,16 +116,14 @@ class SnapshotPercept(private val runConfig: RunConfig) {
         }
         view.boulderCount = n
 
-        // Remember this frame's centers for the next diff.
-        if (prevBoulderX.size < n) {
-            prevBoulderX = FloatArray(n)
-            prevBoulderY = FloatArray(n)
+        // Remember this frame's centers (keyed by id) for the next diff.
+        prevBoulderX.clear()
+        prevBoulderY.clear()
+        for (e in entities) {
+            if (e.kind != ShapeKind.CIRCLE || e.playerId >= 0) continue
+            prevBoulderX[e.id] = e.x
+            prevBoulderY[e.id] = e.y
         }
-        for (i in 0 until n) {
-            prevBoulderX[i] = view.boulderX[i]
-            prevBoulderY[i] = view.boulderY[i]
-        }
-        prevBoulderN = n
     }
 
     // Resting on a solid top (ground or a slab's non-hole half) with ~0 vertical
@@ -149,6 +144,9 @@ class SnapshotPercept(private val runConfig: RunConfig) {
     }
 
     private companion object {
+        // A boulder moves at most ~0.1m/frame; a recycle teleport jumps a whole
+        // platform interval. Anything past this is a discontinuity, not motion.
+        const val MAX_PLAUSIBLE_STEP = 0.5f // m, per frame
         const val HOLE_EPS = 0.02f          // holeWidth at/below this reads as solid
         const val GROUNDED_VY_BAND = 0.8f   // m/s; |vy| under this counts as "not climbing/falling"
         const val GROUNDED_GAP = 0.08f      // m; ball bottom this close to a top counts as resting
