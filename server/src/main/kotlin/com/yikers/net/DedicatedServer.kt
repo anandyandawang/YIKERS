@@ -1,6 +1,5 @@
 package com.yikers.net
 
-import com.yikers.bot.BotClient
 import com.yikers.net.discovery.DiscoveryResponder
 import com.yikers.net.wire.Framing
 import com.yikers.net.wire.Join
@@ -20,14 +19,14 @@ import kotlin.concurrent.thread
 // socket. It owns the clock — a 60Hz tick thread drains queued client input, steps
 // the sim, snapshots once, and broadcasts to every client. An acceptor thread
 // handshakes new clients, assigning each a dynamic player slot (despawned on
-// disconnect); a UDP responder answers LAN discovery. Optional attract bots run
-// in-process as ordinary clients — they join the same room and the server treats
-// them exactly like the socket clients (it can't tell which is which).
+// disconnect); a UDP responder answers LAN discovery. It knows NOTHING about who or
+// what connects: a client is a socket that sends InputCommands and reads
+// WorldSnapshots — human or bot is meaningless here. Bots, when wanted, are launched
+// elsewhere (BotRunner) and connect over this same socket like anyone else.
 class DedicatedServer(
     val name: String,
     tcpPort: Int,
     private val cfg: SessionConfig,
-    private val bots: Int = 0,
     private val maxPlayers: Int = DEFAULT_MAX_PLAYERS,
 ) {
     // The authoritative session — the same code singleplayer runs in-process.
@@ -39,9 +38,6 @@ class DedicatedServer(
 
     // Connected socket clients. Guarded by `conns` itself for iteration.
     private val conns = ArrayList<ClientConn>()
-
-    // In-process attract bots: each owns a real player slot, same as a person.
-    private val botClients = ArrayList<BotClient>()
 
     // Inbound input is funnelled here from reader threads and drained on the tick
     // thread, so all sim mutation stays single-threaded.
@@ -61,11 +57,6 @@ class DedicatedServer(
 
     fun start() {
         running = true
-        // Attract bots join up front as ordinary clients (own slot + local session).
-        repeat(bots) {
-            val session = LocalGameSession(instance, instance.addPlayer())
-            botClients.add(BotClient(session, cfg.runConfig))
-        }
         ticker = thread(name = "yikers-server-tick", isDaemon = true) { runTickLoop() }
         acceptor = thread(name = "yikers-server-accept", isDaemon = true) { runAcceptLoop() }
         responder = DiscoveryResponder(
@@ -137,9 +128,6 @@ class DedicatedServer(
             val snap = instance.snapshot()
             val targets = synchronized(conns) { conns.toList() }
             targets.forEach { it.send(Snapshot(snap)) }
-            // Attract bots act on the frame just produced (their input lands next
-            // tick) — same one-frame seam any networked client has.
-            botClients.forEach { it.pump(DT) }
 
             next += stepNanos
             val sleep = next - System.nanoTime()

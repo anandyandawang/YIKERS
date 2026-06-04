@@ -1,0 +1,55 @@
+package com.yikers.net
+
+import com.yikers.bot.BotAgent
+import java.util.concurrent.locks.LockSupport
+import kotlin.concurrent.thread
+
+// Launches bot clients that connect to a server over the REAL socket and drive
+// themselves — the same path a human client takes (NetworkHost -> NetworkGameSession).
+// The server has no idea these are bots: they handshake, read WorldSnapshots, and
+// submit InputCommands like anyone else. Each bot is a Participant(networkSession,
+// BotAgent); one daemon thread pumps them all at the server tick rate (the server
+// owns the clock, so nothing is stepped here).
+class BotRunner(
+    private val host: String,
+    private val port: Int,
+    private val count: Int,
+) {
+    private val participants = ArrayList<Participant>()
+
+    @Volatile
+    private var running = false
+    private var pumpThread: Thread? = null
+
+    fun start() {
+        repeat(count) {
+            val session = NetworkHost(host, port).join(RoomId("bot")) as NetworkGameSession
+            // Use the server's own run feel, handed over in the Welcome handshake.
+            participants.add(Participant(session, BotAgent(session.config.runConfig)))
+        }
+        running = true
+        pumpThread = thread(name = "yikers-bot-pump", isDaemon = true) { runPumpLoop() }
+    }
+
+    private fun runPumpLoop() {
+        val stepNanos = 1_000_000_000L / DedicatedServer.TICK_HZ
+        var next = System.nanoTime()
+        while (running) {
+            try {
+                participants.forEach { it.pump(DedicatedServer.DT) }
+            } catch (e: Exception) {
+                System.err.println("yikers-bot-pump error: ${e.stackTraceToString()}")
+            }
+            next += stepNanos
+            val sleep = next - System.nanoTime()
+            if (sleep > 0) LockSupport.parkNanos(sleep) else next = System.nanoTime()
+        }
+    }
+
+    fun stop() {
+        running = false
+        pumpThread?.let { runCatching { it.join(500) } }
+        participants.forEach { it.close() }
+        participants.clear()
+    }
+}

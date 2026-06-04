@@ -1,11 +1,12 @@
 package com.yikers.integration
 
-import com.yikers.bot.BotClient
+import com.yikers.bot.BotAgent
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
 import com.yikers.net.EntitySnap
 import com.yikers.net.InputCommand
 import com.yikers.net.LocalHost
+import com.yikers.net.Participant
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
 import com.yikers.support.HeadlessGdx
@@ -36,9 +37,9 @@ class GameInstanceTest {
             }
             assertTrue(start.entities.isNotEmpty()) { "snapshot must expose the boulder pool" }
 
-            // A bot is just a client: join, then read snapshot -> decide -> submit.
-            val session = host.join(room)
-            val bot = BotClient(session, RunConfig())
+            // A bot is just a client: a Participant pairing a session with a BotAgent.
+            // join -> read snapshot -> decide -> submit, identical to a human client.
+            val bot = Participant(host.join(room), BotAgent(RunConfig()))
             inst.tick(dt) // spawn the bot's ball (addPlayer queued the spawn)
 
             repeat(CLIMB_SECONDS * 60) {

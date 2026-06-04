@@ -16,10 +16,18 @@ import kotlin.math.abs
 // Velocities (own vy, boulder vx/vy) are still derived by differencing consecutive
 // frames, and grounded is inferred from ~0 vertical speed while resting on a solid
 // top — the wire intentionally stays free of velocity/grounded state.
+//
+// Velocity is derived from how far things moved between DISTINCT snapshot ticks,
+// divided by the sim time those ticks represent (tickDelta / SIM_HZ) — never by
+// wall-clock. A client may pump faster or slower than the server broadcasts, so
+// wall time between reads doesn't match sim time; re-reading the same frame would
+// also self-difference to a spurious vy = 0. Keying off the authoritative tick makes
+// velocity exact regardless of pump cadence, which the jump-arc math relies on.
 class SnapshotPercept(private val runConfig: RunConfig) {
     val self = BotSelf()
     val view = BotView()
 
+    private var lastTick = -1L
     private var haveSelf = false
     private var lastSelfY = 0f
 
@@ -30,26 +38,37 @@ class SnapshotPercept(private val runConfig: RunConfig) {
     private val gravity = abs(GameConfig.GRAVITY * runConfig.gravityScale)
 
     // myId = this client's slot, used to find its own ball in the snapshot.
-    fun update(snap: WorldSnapshot, dt: Float, myId: Int) {
+    fun update(snap: WorldSnapshot, myId: Int) {
         self.speed = runConfig.horizontalSpeed
         self.jumpVelocity = runConfig.jumpVelocity
         view.gravityPxS2 = gravity
 
-        locateSelf(snap, dt, myId)
+        val advanced = snap.tick != lastTick
+        // Sim seconds since the last distinct frame (>=1 tick), from the authoritative
+        // tick counter — independent of how often this client pumps.
+        val frameDt = if (lastTick < 0) 0f else (snap.tick - lastTick) / GameConfig.SIM_HZ.toFloat()
+
+        locateSelf(snap, myId, advanced, frameDt)
         fillHoles(snap.platforms, self.y)
         view.distToKillLine = self.y - snap.scrollY
-        fillBoulders(snap.entities, dt)
+        fillBoulders(snap.entities, advanced, frameDt)
         self.grounded = inferGrounded(snap.platforms)
+
+        if (advanced) lastTick = snap.tick
     }
 
-    // Our own ball is the one tagged with our slot. Update own vy by differencing.
-    private fun locateSelf(snap: WorldSnapshot, dt: Float, myId: Int) {
+    // Our own ball is the one tagged with our slot. Position updates every call;
+    // vy only on a new frame, over the time since the last distinct frame.
+    private fun locateSelf(snap: WorldSnapshot, myId: Int, advanced: Boolean, frameDt: Float) {
         val mine = snap.entities.firstOrNull { it.playerId == myId } ?: return  // not spawned yet
         self.x = mine.x
         self.y = mine.y
-        self.vy = if (haveSelf && dt > 0f) (mine.y - lastSelfY) / dt else 0f
-        lastSelfY = mine.y
-        haveSelf = true
+        if (advanced) {
+            self.vy = if (haveSelf && frameDt > 0f) (mine.y - lastSelfY) / frameDt else 0f
+            lastSelfY = mine.y
+            haveSelf = true
+        }
+        // same frame: keep the last computed vy (don't divide a frame against itself)
     }
 
     // Two lowest holes above the ball + the support slab below it. Mirror of the
@@ -89,40 +108,44 @@ class SnapshotPercept(private val runConfig: RunConfig) {
         view.supportHoleWidth = if (supY == -Float.MAX_VALUE) 0f else supW
     }
 
-    // Boulders = the non-player circles (playerId < 0). Velocity by differencing
-    // this frame's center against the SAME boulder's last center, matched by stable
-    // entity id. A recycled boulder teleports to a new platform; that one-frame jump
-    // is implausibly large, so clamp it to zero rather than report a bogus spike.
-    private fun fillBoulders(entities: List<EntitySnap>, dt: Float) {
+    // Boulders = the non-player circles (playerId < 0). Positions update every call;
+    // velocity only on a new frame, by differencing this frame's center against the
+    // SAME boulder's last center (matched by stable entity id). A recycled boulder
+    // teleports to a new platform; that jump is implausibly large, so clamp it to
+    // zero rather than report a bogus spike. On a re-read of the same frame the prior
+    // velocities are kept (no self-differencing).
+    private fun fillBoulders(entities: List<EntitySnap>, advanced: Boolean, frameDt: Float) {
         var n = 0
         for (e in entities) {
             if (n >= view.boulderX.size) break
             if (e.kind != ShapeKind.CIRCLE || e.playerId >= 0) continue  // not a boulder
             view.boulderX[n] = e.x
             view.boulderY[n] = e.y
-            val px = prevBoulderX[e.id]
-            val py = prevBoulderY[e.id]
-            if (dt > 0f && px != null && py != null) {
-                val vx = (e.x - px) / dt
-                val vy = (e.y - py) / dt
-                val recycled = abs(e.x - px) > MAX_PLAUSIBLE_STEP || abs(e.y - py) > MAX_PLAUSIBLE_STEP
-                view.boulderVx[n] = if (recycled) 0f else vx
-                view.boulderVy[n] = if (recycled) 0f else vy
-            } else {
-                view.boulderVx[n] = 0f
-                view.boulderVy[n] = 0f
+            if (advanced) {
+                val px = prevBoulderX[e.id]
+                val py = prevBoulderY[e.id]
+                if (frameDt > 0f && px != null && py != null) {
+                    val recycled = abs(e.x - px) > MAX_PLAUSIBLE_STEP || abs(e.y - py) > MAX_PLAUSIBLE_STEP
+                    view.boulderVx[n] = if (recycled) 0f else (e.x - px) / frameDt
+                    view.boulderVy[n] = if (recycled) 0f else (e.y - py) / frameDt
+                } else {
+                    view.boulderVx[n] = 0f
+                    view.boulderVy[n] = 0f
+                }
             }
             n++
         }
         view.boulderCount = n
 
-        // Remember this frame's centers (keyed by id) for the next diff.
-        prevBoulderX.clear()
-        prevBoulderY.clear()
-        for (e in entities) {
-            if (e.kind != ShapeKind.CIRCLE || e.playerId >= 0) continue
-            prevBoulderX[e.id] = e.x
-            prevBoulderY[e.id] = e.y
+        if (advanced) {
+            // Remember this frame's centers (keyed by id) for the next diff.
+            prevBoulderX.clear()
+            prevBoulderY.clear()
+            for (e in entities) {
+                if (e.kind != ShapeKind.CIRCLE || e.playerId >= 0) continue
+                prevBoulderX[e.id] = e.x
+                prevBoulderY[e.id] = e.y
+            }
         }
     }
 

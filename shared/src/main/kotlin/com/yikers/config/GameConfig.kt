@@ -12,6 +12,8 @@ object GameConfig {
     const val PLATFORM_INTERVALS = 1.9f
     const val NUM_PLATFORMS = 6
 
+    const val SIM_HZ = 60               // fixed sim tick rate; 1 snapshot tick = 1/SIM_HZ s
+
     const val GRAVITY = -20f            // realtime gravity (m/s^2); YIKES -500 ran at 0.2x sim (-500 * 0.2^2)
     const val SCALING_FACTOR = 0.0017f  // ball-derived scroll scale (from YIKES); px->m /100 folded in
 

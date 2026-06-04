@@ -8,17 +8,18 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.yikers.YikersGame
-import com.yikers.bot.BotClient
+import com.yikers.bot.BotAgent
 import com.yikers.config.GameConfig
 import com.yikers.config.Prefs
 import com.yikers.control.BootConfig
-import com.yikers.control.HumanInput
+import com.yikers.control.HumanAgent
 import com.yikers.control.Roster
 import com.yikers.net.GameHost
 import com.yikers.net.GameSession
 import com.yikers.net.LocalHost
 import com.yikers.net.NetworkGameSession
 import com.yikers.net.NetworkHost
+import com.yikers.net.Participant
 import com.yikers.net.RoomId
 import com.yikers.net.Session
 import com.yikers.net.SessionConfig
@@ -49,12 +50,11 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
 
     private var host: GameHost? = null
     private var room: RoomId? = null
-    // All joined clients; the first owns the clock (drives step()), the rest just
-    // submit input. Local-only bot clients pump off the same shared snapshot.
-    private var sessions: List<GameSession> = emptyList()
+    // Every joined client as a Participant (session + agent) — humans and bots are
+    // the same type here, differing only by agent. The first one's session owns the
+    // clock (drives step()); the rest just submit input.
+    private var participants: List<Participant> = emptyList()
     private var clock: GameSession? = null
-    private var humanInputs: List<Pair<HumanInput, GameSession>> = emptyList()
-    private var botClients: List<BotClient> = emptyList()
     private var speed = 0f
 
     private var deadElapsed = 0f
@@ -100,32 +100,30 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         }
     }
 
-    // One human client; the server owns the clock + runs any bots. Read feel from
-    // the Welcome config and drive only our own slot.
+    // One human client; the server owns the clock. Read feel from the Welcome config
+    // and drive only our own slot. (Bots against a LAN server connect separately as
+    // their own socket clients — never spawned from here.)
     private fun joinNetwork(h: GameHost, r: RoomId, cfg: SessionConfig) {
         val s = h.join(r)
         speed = (s as? NetworkGameSession)?.config?.runConfig?.horizontalSpeed
             ?: cfg.runConfig.horizontalSpeed
-        sessions = listOf(s)
         clock = s
-        humanInputs = listOf(HumanInput(s.playerId) to s)
-        botClients = emptyList()
+        participants = listOf(Participant(s, HumanAgent(speed)))
     }
 
     // Local run: one client per local human + one per local bot, all on this room.
     // Empty roster (0 humans, 0 bots) falls back to a lone bot = hands-free attract.
+    // Bots are in-process clients here, but the embedded server never knows that —
+    // each is just a join() + a Participant whose agent happens to be a BotAgent.
     private fun joinLocal(h: GameHost, r: RoomId, cfg: SessionConfig) {
         speed = cfg.runConfig.horizontalSpeed
         val humanCount = Roster.humans
         val botCount = if (Roster.humans == 0 && Roster.bots == 0) 1 else Roster.bots
 
-        val humanSessions = List(humanCount) { h.join(r) }
-        val botSessions = List(botCount) { h.join(r) }
-        sessions = humanSessions + botSessions
-        clock = sessions.firstOrNull()
-        // One local human per session (all on ARROWS for now, as before).
-        humanInputs = humanSessions.map { HumanInput(it.playerId) to it }
-        botClients = botSessions.map { BotClient(it, cfg.runConfig) }
+        val humans = List(humanCount) { Participant(h.join(r), HumanAgent(speed)) }
+        val bots = List(botCount) { Participant(h.join(r), BotAgent(cfg.runConfig)) }
+        participants = humans + bots
+        clock = participants.firstOrNull()?.session
     }
 
     override fun render(delta: Float) {
@@ -133,9 +131,9 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
         viewport.apply()
 
-        // Every client submits this frame, then the clock owner advances the run.
-        humanInputs.forEach { (input, session) -> session.submitInput(input.poll(speed)) }
-        botClients.forEach { it.pump(delta) }
+        // Every client (human or bot) decides + submits this frame the same way, then
+        // the clock owner advances the run.
+        participants.forEach { it.pump(delta) }
         clock.step(delta)
         val snap = clock.snapshot()
 
@@ -205,17 +203,15 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     override fun dispose() = teardown()
 
     private fun teardown() {
-        // Close every session first: for a network client this shuts the socket +
+        // Close every client first: for a network client this shuts the socket +
         // reader thread; for local clients it drops their player from the room. Then
         // drop the room on the host (disposes the embedded sim).
-        sessions.forEach { it.close() }
+        participants.forEach { it.close() }
         host?.let { h -> room?.let { h.close(it) } }
         host = null
         room = null
-        sessions = emptyList()
+        participants = emptyList()
         clock = null
-        humanInputs = emptyList()
-        botClients = emptyList()
     }
 
     companion object {

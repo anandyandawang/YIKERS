@@ -2,7 +2,9 @@ package com.yikers.control
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
+import com.yikers.net.InputAgent
 import com.yikers.net.InputCommand
+import com.yikers.net.WorldSnapshot
 
 // Key bindings for one human. ARROWS = the original single-player binds (so default
 // play is unchanged). WASD is defined for a future second human and is not wired up
@@ -20,17 +22,18 @@ data class KeyProfile(
     }
 }
 
-// CLIENT-side input: reads live keyboard/touch/tilt and packages it as an
-// InputCommand to relay across the GameSession seam. Was HumanController; same feel
-// (held arrow = x-velocity, edge-press = jump — ground gating still happens
-// server-side in ControlSystem). On tilt devices horizontal comes from the
-// accelerometer: vx = -speed * accelX (raw, no deadzone), matching YIKES. `speed`
+// CLIENT-side human agent: reads live keyboard/touch/tilt and packages it as an
+// InputCommand. The world snapshot is ignored — a person looks at the screen, not at
+// the wire. Same InputAgent contract a bot satisfies, so the run loop drives humans
+// and bots identically. Held arrow = x-velocity, edge-press = jump (ground gating
+// still happens server-side in ControlSystem). On tilt devices horizontal comes from
+// the accelerometer: vx = -speed * accelX (raw, no deadzone), matching YIKES. `speed`
 // (horizontalSpeed) is passed in since the client no longer owns the sim RunConfig.
-class HumanInput(
-    private val playerId: Int = 0,
+class HumanAgent(
+    private val speed: Float,
     private val keys: KeyProfile = KeyProfile.ARROWS,
-) {
-    fun poll(speed: Float): InputCommand {
+) : InputAgent {
+    override fun decide(world: WorldSnapshot, selfId: Int, dt: Float): InputCommand {
         val tilt = Gdx.input.isPeripheralAvailable(Input.Peripheral.Accelerometer)
         val vx = if (tilt) {
             -speed * Gdx.input.accelerometerX
@@ -46,6 +49,6 @@ class HumanInput(
         val jump = Gdx.input.isKeyJustPressed(keys.jump1) ||
             Gdx.input.isKeyJustPressed(keys.jump2) ||
             (keys.touchJumps && Gdx.input.justTouched())
-        return InputCommand(playerId, vx, jump)
+        return InputCommand(selfId, vx, jump)
     }
 }
