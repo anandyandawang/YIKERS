@@ -9,7 +9,7 @@ application {
 }
 
 dependencies {
-    implementation(project(":core"))
+    implementation(project(":client"))
     // ktx-app: YikersGame extends KtxGame, so launcher needs that type chain visible.
     implementation(libs.ktx.app)
     implementation(libs.gdx.backend.lwjgl3)

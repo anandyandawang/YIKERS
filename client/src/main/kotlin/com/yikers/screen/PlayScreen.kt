@@ -1,0 +1,166 @@
+package com.yikers.screen
+
+import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Input
+import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.OrthographicCamera
+import com.badlogic.gdx.graphics.g2d.GlyphLayout
+import com.badlogic.gdx.utils.ScreenUtils
+import com.badlogic.gdx.utils.viewport.ExtendViewport
+import com.yikers.YikersGame
+import com.yikers.config.GameConfig
+import com.yikers.config.Prefs
+import com.yikers.control.BootConfig
+import com.yikers.control.HumanInput
+import com.yikers.control.Roster
+import com.yikers.net.GameHost
+import com.yikers.net.GameSession
+import com.yikers.net.LocalHost
+import com.yikers.net.RoomId
+import com.yikers.net.SessionConfig
+import com.yikers.net.WorldSnapshot
+import com.yikers.render.SnapshotRenderer
+import ktx.app.KtxScreen
+
+// Owns one run from the CLIENT side: opens a room on a (local) host, then each
+// frame captures input -> submits it -> steps the session -> renders the returned
+// snapshot. No Fleks/Box2D here — the sim lives behind the GameSession seam, so
+// singleplayer is just an embedded local server.
+class PlayScreen(private val game: YikersGame) : KtxScreen {
+    private val camera = OrthographicCamera()
+    // ExtendViewport: pin world WIDTH to full screen width (no side bars) and let
+    // HEIGHT extend on taller phones, so the bottom sits on the kill-line and
+    // higher-aspect screens see more world above.
+    private val viewport = ExtendViewport(GameConfig.WIDTH, GameConfig.HEIGHT, camera)
+
+    // HUD draws in its own pixel space — the world cam is meters, so the font would
+    // render ~100x too big through it. Extends with the screen like the world.
+    private val hudCamera = OrthographicCamera()
+    private val hudViewport = ExtendViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX, hudCamera)
+    private val layout = GlyphLayout()
+
+    private val renderer = SnapshotRenderer(game.shape, camera)
+
+    private var host: GameHost? = null
+    private var room: RoomId? = null
+    private var session: GameSession? = null
+    private var humanInputs: List<HumanInput> = emptyList()
+    private var speed = 0f
+
+    private var deadElapsed = 0f
+    private var persisted = false
+
+    override fun show() {
+        teardown()
+        deadElapsed = 0f
+        persisted = false
+
+        camera.position.set(GameConfig.WIDTH / 2f, GameConfig.HEIGHT / 2f, 0f)
+        camera.update()
+        hudCamera.position.set(GameConfig.WIDTH_PX / 2f, GameConfig.HEIGHT_PX / 2f, 0f)
+        hudCamera.update()
+
+        val cfg = SessionConfig(
+            humans = Roster.humans,
+            bots = Roster.bots,
+            seed = BootConfig.seed,
+            viewHeight = GameConfig.HEIGHT,
+            previousHighScore = Prefs.highScore,
+        )
+        speed = cfg.runConfig.horizontalSpeed
+        // One local human per roster slot (all on ARROWS for now, as before).
+        humanInputs = List(Roster.humans) { HumanInput(it) }
+
+        val h = LocalHost()
+        val r = h.open(cfg)
+        host = h
+        room = r
+        session = h.join(r)
+    }
+
+    override fun render(delta: Float) {
+        val session = session ?: return
+        ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
+        viewport.apply()
+        session.setViewHeight(viewport.worldHeight) // device aspect -> visible world height
+
+        humanInputs.forEach { session.submitInput(it.poll(speed)) }
+        session.step(delta)
+        val snap = session.snapshot()
+
+        renderer.render(snap)
+        drawHud(snap)
+
+        if (snap.dead) handleGameOver(delta, snap)
+    }
+
+    // Run-level HUD overlay: score readout + game-over panel, drawn in pixel space
+    // after the world. UI isn't entity data, so it lives on the screen and reads
+    // straight from the snapshot.
+    private fun drawHud(snap: WorldSnapshot) {
+        hudViewport.apply() // world is ExtendViewport (full-screen glViewport); HUD needs its own
+        val batch = game.batch
+        val font = game.font
+        val w = hudViewport.worldWidth
+        val h = hudViewport.worldHeight
+        batch.projectionMatrix = hudCamera.combined
+        batch.begin()
+        font.color = Color.WHITE
+        font.draw(batch, "SCORE ${snap.score}", 12f, h - 12f)
+
+        if (snap.dead) {
+            val midY = h / 2f
+            font.color = Color.CORAL
+            centeredHud("GAME OVER", midY + 80f, w)
+            font.color = Color.WHITE
+            centeredHud("SCORE ${snap.score}", midY + 20f, w)
+            centeredHud("HIGH ${snap.highScore}", midY - 20f, w)
+            centeredHud("press space", midY - 90f, w)
+        }
+        batch.end()
+    }
+
+    private fun centeredHud(text: String, y: Float, w: Float) {
+        layout.setText(game.font, text)
+        game.font.draw(game.batch, text, w / 2f - layout.width / 2f, y)
+    }
+
+    // On death: persist the high score once (server tracks the in-run max; the
+    // client owns the saved Prefs). Hands-free returns to the menu (which auto-
+    // starts again) after a beat; otherwise wait for a key/tap.
+    private fun handleGameOver(delta: Float, snap: WorldSnapshot) {
+        if (!persisted) {
+            if (snap.highScore > Prefs.highScore) Prefs.highScore = snap.highScore
+            persisted = true
+        }
+        if (Roster.handsFree) {
+            deadElapsed += delta
+            if (deadElapsed >= AUTO_RESTART_DELAY) game.setScreen<MenuScreen>()
+        } else if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) || Gdx.input.justTouched()) {
+            game.setScreen<MenuScreen>()
+        }
+    }
+
+    override fun resize(width: Int, height: Int) {
+        // PlayScreen drives camera.y for scrolling — don't recenter the world cam.
+        viewport.update(width, height, false)
+        hudViewport.update(width, height, true)
+    }
+
+    override fun hide() = teardown()
+
+    override fun dispose() = teardown()
+
+    private fun teardown() {
+        val h = host ?: return
+        room?.let { h.close(it) }
+        host = null
+        room = null
+        session = null
+        humanInputs = emptyList()
+    }
+
+    companion object {
+        private const val AUTO_RESTART_DELAY = 1.5f
+    }
+}

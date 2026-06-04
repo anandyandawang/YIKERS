@@ -68,7 +68,7 @@ kotlin {
 val natives: Configuration by configurations.creating
 
 dependencies {
-    implementation(project(":core"))
+    implementation(project(":client"))
     // ktx-app: YikersGame extends KtxGame, so the launcher needs that type chain.
     implementation(libs.ktx.app)
     // gdx core: AndroidApplication's supertype (com.badlogic.gdx.Application) and
