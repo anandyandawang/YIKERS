@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-  pull_request:
+    branches: [main]   # post-merge / direct-to-main only; PR branches run via pull_request
+  pull_request:        # all PR branches: re-runs on each push (synchronize), covers forks
   workflow_dispatch:
 
 jobs:
