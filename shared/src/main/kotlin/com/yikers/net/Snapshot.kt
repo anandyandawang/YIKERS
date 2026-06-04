@@ -2,10 +2,7 @@ package com.yikers.net
 
 import kotlinx.serialization.Serializable
 
-// One renderable entity (ball or boulder). Color is flattened to r/g/b/a floats so
-// the transport needs no Color serializer. Meters, center-origin. `id` = stable
-// per-entity handle (track an object across frames); `playerId` = owning slot for a
-// player ball, else -1 (lets a client find its own ball).
+// One renderable entity. Meters, center-origin. playerId = owning slot, else -1.
 @Serializable
 data class EntitySnap(
     val kind: ShapeKind,
@@ -17,12 +14,10 @@ data class EntitySnap(
     val playerId: Int = -1,
 )
 
-// One platform: a solid slab at y with a gap spanning [holeX, holeX + holeWidth].
 @Serializable
 data class PlatformSnap(val y: Float, val holeX: Float, val holeWidth: Float)
 
-// Everything the client needs to render one frame. No ECS / Box2D types leak — the
-// arena (ground + walls) is redrawn client-side from GameConfig, so it is omitted.
+// One frame for the client. Arena redrawn from GameConfig, so omitted.
 @Serializable
 data class WorldSnapshot(
     val tick: Long,

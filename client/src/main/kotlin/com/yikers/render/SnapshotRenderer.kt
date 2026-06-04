@@ -7,22 +7,16 @@ import com.yikers.config.GameConfig
 import com.yikers.net.ShapeKind
 import com.yikers.net.WorldSnapshot
 
-// Asset-free draw pass via ShapeRenderer, fed purely by a WorldSnapshot from the
-// server. This is the old RenderSystem.onTick body with ECS family iteration
-// swapped for snapshot lists: same camera math, same arena draw from GameConfig,
-// same platform halves, same per-entity circle/rect. Separate from the HUD batch.
 class SnapshotRenderer(
     private val shape: ShapeRenderer,
     private val cam: OrthographicCamera,
 ) {
-    // Reused so each entity's flattened r/g/b/a doesn't allocate a Color per frame.
+    // Reused so flattened r/g/b/a doesn't allocate a Color per entity per frame.
     private val tint = Color()
 
-    // viewH is THIS client's local visible world height (device aspect via the
-    // viewport). It never crosses the seam — each client centers its own camera.
+    // viewH = this client's local view height; never crosses the seam.
     fun render(snap: WorldSnapshot, viewH: Float) {
-        // kill-line (scrollY) is the view's bottom edge; center the cam half a
-        // view-height above it so [scrollY, scrollY + viewH] shows.
+        // scrollY = view bottom; center the cam half a view-height above it.
         val viewBottom = snap.scrollY
         cam.position.y = viewBottom + viewH / 2f
         cam.update()

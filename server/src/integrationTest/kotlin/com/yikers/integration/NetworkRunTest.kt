@@ -11,11 +11,8 @@ import com.yikers.support.HeadlessGdx
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// End-to-end LAN test: boot a real DedicatedServer on an ephemeral localhost port,
-// connect TWO socket clients to the one room, and prove they share the server's
-// authoritative world. Connects straight to server.port (NOT via UDP discovery, which
-// CI may block). The server owns the clock, so the clients WAIT on snapshot ticks
-// rather than stepping anything themselves.
+// End-to-end LAN: two socket clients share one DedicatedServer's authoritative world.
+// Connects straight to server.port (UDP discovery may be CI-blocked).
 @HeadlessGdx
 class NetworkRunTest {
 
@@ -31,7 +28,6 @@ class NetworkRunTest {
         val p0 = NetworkHost("127.0.0.1", server.port).join(RoomId("net"))
         val p1 = NetworkHost("127.0.0.1", server.port).join(RoomId("net"))
         try {
-            // Both clients must begin receiving the server's broadcast frames.
             awaitTick(p0)
             awaitTick(p1)
 
@@ -43,10 +39,7 @@ class NetworkRunTest {
                 "both climbers must exist in the shared world; got ${playerBalls(s0).size}"
             }
 
-            // End-to-end input: hold right on client 0. Its OWN ball is the one tagged
-            // playerId 0 on the wire, so we track exactly that one and prove it
-            // advanced — an InputCommand travelled the wire, hit the sim, and came back
-            // in a snapshot. Short window so the rising kill-line can't end the run.
+            // Hold right on client 0; prove its own ball advanced over the wire.
             val x0 = ballOf(p0.snapshot(), 0).x
             repeat(40) {
                 p0.submitInput(InputCommand(playerId = 0, vx = 4f, jump = false))
@@ -57,7 +50,6 @@ class NetworkRunTest {
                 "client 0's held-right input must move its own climber over the wire; x0=$x0 x1=$x1"
             }
 
-            // The shared clock keeps advancing on its own thread.
             val t = p0.snapshot().tick
             Thread.sleep(200)
             assertTrue(p0.snapshot().tick > t) { "server clock must keep ticking" }
@@ -68,13 +60,10 @@ class NetworkRunTest {
         }
     }
 
-    // Player balls only (slot id >= 0; boulders are -1).
     private fun playerBalls(snap: WorldSnapshot) = snap.entities.filter { it.playerId >= 0 }
 
-    // The ball owned by a given slot.
     private fun ballOf(snap: WorldSnapshot, id: Int) = snap.entities.first { it.playerId == id }
 
-    // Spin until the client has seen at least one real frame, or give up.
     private fun awaitTick(session: GameSession, timeoutMs: Long = 5000) {
         val deadline = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < deadline) {

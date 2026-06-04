@@ -8,9 +8,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// Full-run smoke: boot the real sim (Fleks + Box2D, no GL), drive a lone bot, and
-// prove it climbs + scores, then that raising the kill-line above it ends the run.
-// This is the off-device path CI reuses (and an eventual iOS build will too).
+// Full-run smoke: a lone bot climbs + scores; raising the kill-line ends the run.
 @HeadlessGdx
 class ClimbRunTest {
 
@@ -19,7 +17,6 @@ class ClimbRunTest {
         buildSim(seed = SEED).use { h ->
             val startY = h.playerY()
 
-            // Climb phase: ~20s sim at 60fps. Any thrown exception fails the test.
             h.world.step(CLIMB_SECONDS * 60)
 
             val climbedY = h.playerY()
@@ -31,8 +28,6 @@ class ClimbRunTest {
             }
             assertFalse(h.runState.dead) { "should still be alive mid-climb" }
 
-            // Forced death: raise the kill-line above the player. scrollY IS the view
-            // bottom, so DeathSystem marks the lone climber Dead -> run ends.
             h.runState.scrollY = climbedY + GameConfig.HEIGHT
             h.world.step(1)
             assertTrue(h.runState.dead) { "raising the kill-line above the player must end the run" }

@@ -9,9 +9,8 @@ import com.yikers.net.RoomId
 import java.util.concurrent.locks.LockSupport
 import kotlin.concurrent.thread
 
-// Connects N bot clients to a server over the real socket and drives them — the same
-// path a human client takes. One daemon thread pumps them at the sim tick rate (the
-// server owns the clock; nothing is stepped here).
+// Connects N bot clients over the real socket; one daemon thread pumps them at the
+// sim tick rate (server owns the clock).
 class BotRunner(
     private val host: String,
     private val port: Int,

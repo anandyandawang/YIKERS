@@ -6,10 +6,8 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import kotlin.concurrent.thread
 
-// Server-side LAN discovery: binds the well-known UDP port and, for each valid query
-// datagram, unicasts a ServerAd back to the sender. Runs on its own daemon thread.
-// Best-effort — if the port is taken or UDP is blocked, discovery simply goes dark
-// and clients fall back to a direct host:port entry.
+// Server-side LAN discovery: binds the UDP port, unicasts a ServerAd to each valid
+// query (own daemon thread). Best-effort: if UDP is blocked, clients use host:port.
 class DiscoveryResponder(
     private val name: String,
     private val tcpPort: Int,
@@ -27,7 +25,7 @@ class DiscoveryResponder(
         val sock = try {
             DatagramSocket(DISCOVERY_PORT).apply { broadcast = true }
         } catch (_: Exception) {
-            return // port busy / no UDP -> discovery disabled, server still joinable
+            return // no UDP -> discovery off, server still joinable
         }
         socket = sock
         running = true

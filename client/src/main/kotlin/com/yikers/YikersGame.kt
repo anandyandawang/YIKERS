@@ -18,21 +18,15 @@ import ktx.app.KtxScreen
 import java.io.PrintWriter
 import java.io.StringWriter
 
-/**
- * YIKERS = roguelike-flavored vertical climber. Inspired by YIKES.
- * App shell: holds shared render resources, swaps between menu + play screens.
- * Game sim live in a Fleks ECS world inside PlayScreen.
- */
+// App shell: shared render resources, swaps menu + play screens. Sim in a Fleks ECS
+// world inside PlayScreen.
 class YikersGame : KtxGame<KtxScreen>() {
     val batch by lazy { SpriteBatch() }
     val shape by lazy { ShapeRenderer() }
     val font by lazy { BitmapFont() }
 
-    // Diagnostic crash screen. No device logs available on iOS, so instead of
-    // letting an uncaught throwable kill the app (which looks like an instant
-    // crash on tap), we catch it in the render loop and paint the stack trace
-    // on-screen. Read it off the device to find the real fault. Remove once the
-    // iOS crash is fixed.
+    // Diagnostic crash screen: no iOS device logs, so catch render-loop throwables
+    // and paint the trace on-screen. Remove once the iOS crash is fixed.
     private var crashText: String? = null
     private val crashViewport by lazy { FitViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX) }
 
@@ -40,9 +34,7 @@ class YikersGame : KtxGame<KtxScreen>() {
         addScreen(MenuScreen(this))
         addScreen(LobbyScreen(this))
         addScreen(PlayScreen(this))
-        // Optional quick-connect: -Dyikers.connect=host:port jumps straight into a
-        // network run (skips the menu/lobby). Handy for launching a connected client
-        // from the CLI / a two-client demo. Default (unset) shows the menu as before.
+        // Quick-connect: -Dyikers.connect=host:port skips menu into a network run.
         val connect = System.getProperty("yikers.connect")?.parseHostPort()
         if (connect != null) {
             Session.network(connect.first, connect.second)
@@ -64,20 +56,15 @@ class YikersGame : KtxGame<KtxScreen>() {
             t.printStackTrace(PrintWriter(sw))
             crashText = sw.toString()
             Gdx.app.error("YIKERS", "uncaught in render loop", t)
-            // Font renders nothing on iOS, so the on-screen dump is unreadable.
-            // Persist the trace to a file too. external == Documents on iOS, and
-            // UIFileSharingEnabled/LSSupportsOpeningDocumentsInPlace (Info.plist)
-            // surface it in the Files app: On My iPhone -> YIKERS -> yikers-crash.txt.
-            // Write to local as a fallback path. Remove once the crash is fixed.
+            // Font draws nothing on iOS, so persist the trace too. external ==
+            // Documents, surfaced in the Files app; local is the fallback.
             runCatching { Gdx.files.external("yikers-crash.txt").writeString(crashText, false) }
             runCatching { Gdx.files.local("yikers-crash.txt").writeString(crashText, false) }
         }
     }
 
-    // Paint the captured stack trace, top-aligned + wrapped, on a red field.
     private fun drawCrash() {
-        // Re-size every frame: the viewport was never sized via resize() before
-        // the crash, so apply() would set a 0x0 glViewport and draw nothing.
+        // Re-size every frame: no resize() ran before the crash, so apply() draws 0x0.
         crashViewport.update(Gdx.graphics.backBufferWidth, Gdx.graphics.backBufferHeight, true)
         ScreenUtils.clear(0.15f, 0.02f, 0.02f, 1f)
         batch.projectionMatrix = crashViewport.camera.combined
@@ -93,15 +80,13 @@ class YikersGame : KtxGame<KtxScreen>() {
     }
 
     override fun dispose() {
-        super.dispose() // disposes registered screens
+        super.dispose()
         batch.dispose()
         shape.dispose()
         font.dispose()
     }
 }
 
-// "host:port" -> (host, port), or null if malformed. Host defaults nowhere; port must
-// parse. Used only by the -Dyikers.connect quick-connect path.
 private fun String.parseHostPort(): Pair<String, Int>? {
     val i = lastIndexOf(':')
     if (i <= 0 || i == length - 1) return null

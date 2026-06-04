@@ -13,9 +13,8 @@ import com.yikers.ecs.component.Intent
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.resource.RunState
 
-// Per-climber control: each Controller decides its move and we record it as Intent.
-// Every player is a RelayController (a client's relayed InputCommand); mechanic
-// systems read Intent downstream and enact it.
+// Each Controller decides its move, recorded as Intent. Every player is a
+// RelayController (a client's relayed InputCommand).
 class ControlSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),

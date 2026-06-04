@@ -8,7 +8,6 @@ import com.yikers.VELOCITY_ITERS
 import com.yikers.ecs.resource.RunState
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
-// Fixed-timestep Box2D stepping decoupled from render dt (clamp avoids spiral).
 class PhysicsStepSystem(
     private val pw: PhysicsWorld = inject(),
     private val runState: RunState = inject(),
@@ -17,12 +16,8 @@ class PhysicsStepSystem(
 
     override fun onTick() {
         if (runState.dead) return
-        // Clamp frame time before accumulating. The first play frame (Box2D
-        // native + ShapeRenderer shader load lazily on menu->play) can be huge,
-        // esp. on iOS cold start; unclamped that's hundreds of 1/300s steps in
-        // one tick -> the catch-up burst blocks the main thread and the iOS
-        // watchdog kills the app (looks like a crash on tap). Cap so a hitch
-        // costs a bounded burst instead of spiraling.
+        // Clamp frame time: the first play frame is huge (lazy loads, worst iOS cold
+        // start); unclamped, the catch-up burst stalls the thread + iOS watchdog kills it.
         acc += minOf(deltaTime, MAX_FRAME_TIME)
         while (acc >= TIME_STEP) {
             pw.step(TIME_STEP, VELOCITY_ITERS, POSITION_ITERS)

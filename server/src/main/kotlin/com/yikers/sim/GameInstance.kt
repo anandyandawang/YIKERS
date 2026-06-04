@@ -39,9 +39,8 @@ import ktx.box2d.createWorld
 import ktx.math.vec2
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
-// One authoritative game world: Box2D + Fleks + RNG, headless. Roster is dynamic:
-// each joining client (human or bot, the instance can't tell) gets a slot via
-// addPlayer(); the platform/boulder layout is built up front so the seed is stable.
+// One authoritative world: Box2D + Fleks + RNG, headless. Dynamic roster: each
+// joining client gets a slot via addPlayer(). Layout built up front (stable seed).
 class GameInstance(private val cfg: SessionConfig) {
     private val runState = RunState().apply {
         highScore = cfg.previousHighScore
@@ -56,16 +55,14 @@ class GameInstance(private val cfg: SessionConfig) {
     private val platforms: Family
     private var tickCount = 0L
 
-    // Slots are reserved off the tick thread (accept thread needs one synchronously
-    // for the handshake); spawn/despawn run on the tick thread via pendingOps so
-    // Box2D is only mutated between steps.
+    // Slots reserved off the tick thread (accept thread needs one for the handshake);
+    // spawn/despawn run via pendingOps so Box2D mutates only between steps.
     private val slotLock = Any()
     private val usedSlots = HashSet<Int>()
     private val relays = HashMap<Int, RelayController>()
     private val entitiesBySlot = HashMap<Int, Entity>()
     private val pendingOps = ConcurrentLinkedQueue<() -> Unit>()
 
-    // Live player count (reserved slots). Cheap, thread-safe — used by host listings.
     val players: Int get() = synchronized(slotLock) { usedSlots.size }
 
     init {
@@ -78,7 +75,6 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(runState)
                 add(arena)
                 add(refs)
-                // No camera / ShapeRenderer: headless; the client renders snapshots.
             }
             systems {
                 add(ControlSystem())
@@ -107,7 +103,7 @@ class GameInstance(private val cfg: SessionConfig) {
         physicsWorld.setContactListener(PlayContactListener(world))
     }
 
-    // Reserve the lowest free slot; ball spawns next tick. Safe from any thread.
+    // Reserve the lowest free slot; ball spawns next tick. Any-thread safe.
     fun addPlayer(): Int {
         val slot = synchronized(slotLock) {
             var s = 0
@@ -119,13 +115,11 @@ class GameInstance(private val cfg: SessionConfig) {
         return slot
     }
 
-    // Queue a client's ball to despawn on the next tick and free its slot.
     fun removePlayer(slot: Int) {
         pendingOps.add { despawnPlayerSlot(slot) }
     }
 
-    // Route a client's input to its relay. Out-of-range / not-yet-spawned slot is
-    // ignored (the relay appears once the spawn op has run).
+    // Route input to the slot's relay; a not-yet-spawned slot is ignored.
     fun applyInput(cmd: InputCommand) {
         relays[cmd.playerId]?.submit(cmd)
     }
@@ -142,8 +136,6 @@ class GameInstance(private val cfg: SessionConfig) {
             op()
         }
     }
-
-    // --- roster mutation, tick thread only (run from drainOps) --------------------
 
     private fun spawnPlayerSlot(slot: Int) {
         val r = GameConfig.BALL_RADIUS
@@ -178,7 +170,6 @@ class GameInstance(private val cfg: SessionConfig) {
         synchronized(slotLock) { usedSlots.remove(slot) }
     }
 
-    // Renderable state for the client; the arena is redrawn client-side from GameConfig.
     fun snapshot(): WorldSnapshot {
         val ents = ArrayList<EntitySnap>()
         val plats = ArrayList<PlatformSnap>()
@@ -224,7 +215,6 @@ class GameInstance(private val cfg: SessionConfig) {
     }
 
     private companion object {
-        // Nominal palette spread for distinct climber hues; slot index picks one.
         const val COLOR_SPREAD = 8
     }
 }

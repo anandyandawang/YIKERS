@@ -8,10 +8,8 @@ import com.yikers.net.ShapeKind
 import com.yikers.net.WorldSnapshot
 import kotlin.math.abs
 
-// Rebuilds BotSelf + BotView from snapshots. Identity is exact (playerId on the
-// wire); velocity and grounded are derived (kept off the wire by design). Velocity
-// is keyed off the sim tick, not wall-clock, so it's correct however fast the client
-// pumps (re-reading the same frame would self-difference to a bogus vy = 0).
+// Rebuilds BotSelf + BotView from snapshots. velocity/grounded derived off the sim
+// tick (not wall-clock), so re-reading a frame can't fake vy = 0.
 class SnapshotPercept(private val runConfig: RunConfig) {
     val self = BotSelf()
     val view = BotView()
@@ -51,8 +49,7 @@ class SnapshotPercept(private val runConfig: RunConfig) {
         }
     }
 
-    // Two lowest holes above the ball + the support slab below it. holeWidth ~ 0
-    // (a bridged/eased slab) reads as solid.
+    // Two lowest holes above + the support slab below. holeWidth ~ 0 reads as solid.
     private fun fillHoles(platforms: List<PlatformSnap>, py: Float) {
         var firstY = Float.MAX_VALUE
         var firstCx = GameConfig.WIDTH / 2f
@@ -87,8 +84,8 @@ class SnapshotPercept(private val runConfig: RunConfig) {
         view.supportHoleWidth = if (supY == -Float.MAX_VALUE) 0f else supW
     }
 
-    // Boulders = non-player circles. Velocity by id-matched frame diff; a recycled
-    // boulder teleports (jump > MAX_PLAUSIBLE_STEP), so clamp that to zero.
+    // Boulders = non-player circles. Velocity by id-matched frame diff; a recycle
+    // teleport (jump > MAX_PLAUSIBLE_STEP) clamps to zero.
     private fun fillBoulders(entities: List<EntitySnap>, advanced: Boolean, frameDt: Float) {
         var n = 0
         for (e in entities) {
@@ -123,8 +120,8 @@ class SnapshotPercept(private val runConfig: RunConfig) {
         }
     }
 
-    // Resting on a solid top with ~0 vertical speed. The speed gate rejects the
-    // airborne apex; the surface gate rejects free-fall over a hole.
+    // Resting on a solid top with ~0 vy: speed gate rejects the apex, surface gate
+    // rejects free-fall over a hole.
     private fun inferGrounded(platforms: List<PlatformSnap>): Boolean {
         if (abs(self.vy) > GROUNDED_VY_BAND) return false
         val r = GameConfig.BALL_RADIUS

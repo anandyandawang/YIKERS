@@ -8,10 +8,9 @@ import com.yikers.net.SessionConfig
 import com.yikers.net.discovery.DEFAULT_TCP_PORT
 import java.net.InetAddress
 
-// Standalone LAN server: ./gradlew :server:run [-Dyikers.port=54000]
-// Boots a headless libGDX app first so the Box2D native loads, then runs a
-// DedicatedServer and blocks. No bot concept — add bots with ./gradlew :bot:run.
-// Knobs: yikers.seed, yikers.port, yikers.name.
+// Standalone LAN server: ./gradlew :server:run [-Dyikers.port=54000]. Boots a
+// headless libGDX app (loads the Box2D native), runs a DedicatedServer, blocks.
+// Add bots via ./gradlew :bot:run. Knobs: yikers.seed, yikers.port, yikers.name.
 fun main() {
     HeadlessApplication(object : ApplicationAdapter() {}, HeadlessApplicationConfiguration())
 

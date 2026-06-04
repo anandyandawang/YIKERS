@@ -4,7 +4,7 @@ import com.badlogic.gdx.math.Vector2
 import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType
 
-// Render data in meters. position = body center. Synced from Box2D each tick.
+// Meters; position = body center. Synced from Box2D each tick.
 data class Transform(
     val position: Vector2 = Vector2(),
     val size: Vector2 = Vector2(),

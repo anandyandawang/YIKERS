@@ -2,8 +2,7 @@ package com.yikers.control
 
 import com.badlogic.gdx.math.MathUtils
 
-// Launch knobs from system properties / env vars. yikers.seed only — there is no
-// humans/bots count here (1 client == 1 player; bots are separate :bot clients).
+// Launch knobs from system properties / env vars. yikers.seed only.
 object BootConfig {
     var seed: Long? = null      // null = random layout
         private set

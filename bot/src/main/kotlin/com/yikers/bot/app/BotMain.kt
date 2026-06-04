@@ -2,8 +2,7 @@ package com.yikers.bot.app
 
 import com.yikers.net.discovery.DEFAULT_TCP_PORT
 
-// Connects bot clients to a running server. Pure JVM (a bot is just a client).
-//   ./gradlew :bot:run   (env: YIKERS_HOST, YIKERS_PORT, YIKERS_BOTS)
+// Connects bot clients to a server. ./gradlew :bot:run (YIKERS_HOST/PORT/BOTS).
 fun main() {
     val host = raw("yikers.host", "YIKERS_HOST") ?: "127.0.0.1"
     val port = intOf("yikers.port", "YIKERS_PORT") ?: DEFAULT_TCP_PORT

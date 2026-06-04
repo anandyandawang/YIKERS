@@ -14,8 +14,8 @@ import com.yikers.ecs.component.Lethal
 import com.yikers.ecs.component.LethalHit
 import com.yikers.ecs.component.PlatformC
 
-// foot <-> solid => grounded count. ball <-> lethal => death flag.
-// No world/body mutation here — only counters/flags. Systems act next tick.
+// foot <-> solid => grounded count. ball <-> lethal => death flag. Only
+// counters/flags here, no world/body mutation; systems act next tick.
 class PlayContactListener(
     private val world: World,
 ) : ContactListener {
@@ -37,10 +37,8 @@ class PlayContactListener(
                 with(world) {
                     val fs = player[FootSensor]
                     fs.contacts = (fs.contacts + if (begin) 1 else -1).coerceAtLeast(0)
-                    // Record the landing: the platform a climber's foot touches is
-                    // one it has stood on. PlatformSystem closes the hole only once
-                    // EVERY living climber is in this list. Ground/walls carry no
-                    // Entity userData, so they fall through to null and are skipped.
+                    // Record the landing for PlatformSystem's bridge (ground/walls
+                    // have no Entity userData -> skipped).
                     if (begin) {
                         val platform = other.body.userData as? Entity
                         val pc = platform?.getOrNull(PlatformC)

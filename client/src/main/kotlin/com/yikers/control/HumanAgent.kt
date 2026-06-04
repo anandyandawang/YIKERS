@@ -6,9 +6,7 @@ import com.yikers.net.InputAgent
 import com.yikers.net.InputCommand
 import com.yikers.net.WorldSnapshot
 
-// Key bindings for one human. ARROWS = the original single-player binds (so default
-// play is unchanged). WASD is defined for a future second human and is not wired up
-// yet. Only one profile should claim touch.
+// ARROWS = default binds; WASD is for a future second human (not wired up).
 data class KeyProfile(
     val left: Int,
     val right: Int,
@@ -22,13 +20,8 @@ data class KeyProfile(
     }
 }
 
-// CLIENT-side human agent: reads live keyboard/touch/tilt and packages it as an
-// InputCommand. The world snapshot is ignored — a person looks at the screen, not at
-// the wire. Same InputAgent contract a bot satisfies, so the run loop drives humans
-// and bots identically. Held arrow = x-velocity, edge-press = jump (ground gating
-// still happens server-side in ControlSystem). On tilt devices horizontal comes from
-// the accelerometer: vx = -speed * accelX (raw, no deadzone), matching YIKES. `speed`
-// (horizontalSpeed) is passed in since the client no longer owns the sim RunConfig.
+// Reads keyboard/touch/tilt into an InputCommand (ignores world). Tilt:
+// vx = -speed * accelX (raw, matching YIKES).
 class HumanAgent(
     private val speed: Float,
     private val keys: KeyProfile = KeyProfile.ARROWS,

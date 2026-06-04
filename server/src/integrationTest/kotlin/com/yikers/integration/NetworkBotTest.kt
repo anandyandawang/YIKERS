@@ -7,9 +7,7 @@ import com.yikers.support.HeadlessGdx
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// A bot reaches the bot-blind server as an ordinary socket client (BotRunner ->
-// NetworkHost -> wire) and climbs. Score read from latestSnapshot (no observer
-// client, which would block the lone bot).
+// A bot reaches the bot-blind server as a socket client and climbs.
 @HeadlessGdx
 class NetworkBotTest {
 

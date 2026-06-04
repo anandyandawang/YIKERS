@@ -9,9 +9,7 @@ import com.yikers.ecs.component.Intent
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.resource.RunState
 
-// Enacts the horizontal slice of Intent: sets the body's x-velocity, preserving
-// vy (gravity + JumpSystem own the vertical axis). Base locomotion doer -- reads
-// Intent, never input, so a human, a bot, or a script all move the same way.
+// Sets x-velocity from Intent.vx, preserving vy. Reads Intent, never input.
 class MoveSystem(
     private val runState: RunState = inject(),
 ) : IteratingSystem(family { all(Physics, Intent).none(Dead) }) {

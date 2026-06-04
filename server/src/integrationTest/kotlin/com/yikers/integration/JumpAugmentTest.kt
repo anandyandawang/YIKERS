@@ -21,10 +21,8 @@ import com.yikers.support.step
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-// JumpSystem mechanic: a grounded climber launches at cfg.jumpVelocity; mid-air it
-// jumps again only if its augments grant air jumps. Proves the GrantsAirJumps gate
-// + JumpState budget via the real DoubleJump augment. No gravity: the body holds
-// whatever velocity JumpSystem sets, so each phase reads cleanly.
+// JumpSystem: grounded launches at jumpVelocity; air jump only if augments grant it.
+// No gravity, so each phase reads cleanly.
 @HeadlessGdx
 class JumpAugmentTest {
 
@@ -47,18 +45,15 @@ class JumpAugmentTest {
                 val body = player[Physics].body
                 player[Intent].jump = true // bot intent is irrelevant; force jump each tick
 
-                // Grounded + jump intent -> launch at cfg.jumpVelocity.
                 player[FootSensor].contacts = 1
                 world.step(1)
                 assertEquals(cfg.jumpVelocity, body.linearVelocity.y, EPS) { "ground jump must launch" }
 
-                // Airborne, no augment -> no second jump.
                 player[FootSensor].contacts = 0
                 body.setLinearVelocity(0f, 0f)
                 world.step(1)
                 assertEquals(0f, body.linearVelocity.y, EPS) { "no air jump without an augment" }
 
-                // Grant DoubleJump -> exactly one air jump, then capped by the budget.
                 player[Augments].owned += DoubleJump
                 body.setLinearVelocity(0f, 0f)
                 world.step(1)

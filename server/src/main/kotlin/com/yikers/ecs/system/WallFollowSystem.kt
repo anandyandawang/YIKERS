@@ -6,11 +6,8 @@ import com.yikers.config.GameConfig
 import com.yikers.ecs.resource.Arena
 import com.yikers.ecs.resource.RunState
 
-// Keep the side walls centered on the kill-line (+ half a design height) so the ball
-// can't escape sideways and boulders always have walls to bounce off. Walls are built
-// HEIGHT*3 tall (see buildArena), so anchoring at scrollY + HEIGHT/2 spans
-// [scrollY - HEIGHT, scrollY + 2*HEIGHT] = ~16m, covering any device's view above the
-// kill-line. No per-client viewHeight needed — this is pure shared sim state.
+// Re-center the HEIGHT*3-tall side walls on scrollY + HEIGHT/2 each tick, so they
+// span any device's view above the kill-line. Pure shared sim state, no viewHeight.
 class WallFollowSystem(
     private val arena: Arena = inject(),
     private val runState: RunState = inject(),

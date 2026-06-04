@@ -24,18 +24,14 @@ import com.yikers.net.WorldSnapshot
 import com.yikers.render.SnapshotRenderer
 import ktx.app.KtxScreen
 
-// Owns one run from the client side: open a room, join a client per participant,
-// then each frame pump every participant -> step the run -> render the snapshot.
-// Local: 1 human + any bots side by side. Network: just this human.
+// Owns one run client-side: open a room, join, then each frame pump -> step ->
+// render the snapshot.
 class PlayScreen(private val game: YikersGame) : KtxScreen {
     private val camera = OrthographicCamera()
-    // ExtendViewport: pin world WIDTH to full screen width (no side bars) and let
-    // HEIGHT extend on taller phones, so the bottom sits on the kill-line and
-    // higher-aspect screens see more world above.
+    // ExtendViewport: pin WIDTH full-width, extend HEIGHT on taller phones.
     private val viewport = ExtendViewport(GameConfig.WIDTH, GameConfig.HEIGHT, camera)
 
-    // HUD draws in its own pixel space — the world cam is meters, so the font would
-    // render ~100x too big through it. Extends with the screen like the world.
+    // HUD in its own pixel space (world cam is meters).
     private val hudCamera = OrthographicCamera()
     private val hudViewport = ExtendViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX, hudCamera)
     private val layout = GlyphLayout()
@@ -44,7 +40,6 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
 
     private var host: GameHost? = null
     private var room: RoomId? = null
-    // This client (always exactly one human). Its session owns the clock.
     private var human: Participant? = null
     private var speed = 0f
 
@@ -64,9 +59,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
             previousHighScore = Prefs.highScore,
         )
 
-        // Same seam, two hosts: LocalHost embeds the sim (singleplayer + local bots),
-        // NetworkHost connects to a LAN server. For network the server already opened
-        // the room, so open() returns a sentinel and join() does the handshake.
+        // Two hosts behind one seam: LocalHost embeds the sim, NetworkHost connects.
         val h: GameHost = if (Session.mode == Session.Mode.NETWORK) {
             NetworkHost(Session.host, Session.port)
         } else {
@@ -82,14 +75,12 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
                 joinLocal(h, r, cfg)
             }
         } catch (e: Exception) {
-            // Server unreachable / refused -> drop back to the lobby instead of crashing.
-            Gdx.app.error("YIKERS", "join failed", e)
+            Gdx.app.error("YIKERS", "join failed", e) // unreachable -> back to lobby
             game.setScreen<LobbyScreen>()
             return
         }
     }
 
-    // One human client; the server owns the clock + any bots. Feel from the Welcome.
     private fun joinNetwork(h: GameHost, r: RoomId, cfg: SessionConfig) {
         val s = h.join(r)
         speed = (s as? NetworkGameSession)?.config?.runConfig?.horizontalSpeed
@@ -97,8 +88,6 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         human = Participant(s, HumanAgent(speed))
     }
 
-    // Local run: one human client on the embedded room. Bots, if any, are separate
-    // :bot socket clients against a server — never spawned here.
     private fun joinLocal(h: GameHost, r: RoomId, cfg: SessionConfig) {
         speed = cfg.runConfig.horizontalSpeed
         human = Participant(h.join(r), HumanAgent(speed))
@@ -109,23 +98,19 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
         viewport.apply()
 
-        human.pump(delta)                 // decide + submit our input
-        human.session.step(delta)         // local: advances the sim; network: no-op
+        human.pump(delta)                 // decide + submit input
+        human.session.step(delta)         // local: steps sim; network: no-op
         val snap = human.session.snapshot()
 
-        // Center on the kill-line using OUR local view height — never sent to the
-        // server, so two clients on different aspects each frame their own view.
+        // Center on the kill-line using OUR local view height (never sent).
         renderer.render(snap, viewport.worldHeight)
         drawHud(snap)
 
         if (snap.dead) handleGameOver(delta, snap)
     }
 
-    // Run-level HUD overlay: score readout + game-over panel, drawn in pixel space
-    // after the world. UI isn't entity data, so it lives on the screen and reads
-    // straight from the snapshot.
     private fun drawHud(snap: WorldSnapshot) {
-        hudViewport.apply() // world is ExtendViewport (full-screen glViewport); HUD needs its own
+        hudViewport.apply() // world fills the glViewport; HUD needs its own
         val batch = game.batch
         val font = game.font
         val w = hudViewport.worldWidth
@@ -152,8 +137,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         game.font.draw(game.batch, text, w / 2f - layout.width / 2f, y)
     }
 
-    // On death: persist the high score once (server tracks the in-run max; the
-    // client owns the saved Prefs), then wait for a key/tap to return to the menu.
+    // Persist the high score once (client owns Prefs), then wait for a key/tap.
     private fun handleGameOver(delta: Float, snap: WorldSnapshot) {
         if (!persisted) {
             if (snap.highScore > Prefs.highScore) Prefs.highScore = snap.highScore
@@ -165,7 +149,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     }
 
     override fun resize(width: Int, height: Int) {
-        // PlayScreen drives camera.y for scrolling — don't recenter the world cam.
+        // PlayScreen drives camera.y for scroll — don't recenter the world cam.
         viewport.update(width, height, false)
         hudViewport.update(width, height, true)
     }
@@ -175,7 +159,6 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     override fun dispose() = teardown()
 
     private fun teardown() {
-        // Close our session (network: our socket; local: drops our player), then the room.
         human?.close()
         host?.let { h -> room?.let { h.close(it) } }
         host = null

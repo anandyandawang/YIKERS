@@ -2,9 +2,7 @@ package com.yikers.control
 
 import com.yikers.net.InputCommand
 
-// Server-side stand-in for one client's climber (human or bot, indistinguishable).
-// Holds the latest relayed InputCommand. Jump is latched so an edge press isn't
-// dropped between client frame rate and sim ticks.
+// Jump is latched so an edge press isn't dropped between client fps and sim ticks.
 class RelayController(val slot: Int) : Controller {
     private var vx = 0f
     private var jumpLatched = false

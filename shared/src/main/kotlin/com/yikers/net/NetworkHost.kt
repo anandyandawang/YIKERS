@@ -10,16 +10,12 @@ import java.io.DataOutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
 
-// GameHost over a socket. The remote DedicatedServer already opened the room, so this
-// is join-only: open/list/close are thin. join() connects, does the Join/Welcome
-// handshake, and returns a NetworkGameSession bound to the assigned player slot.
+// GameHost over a socket. Join-only; join() does the Join/Welcome handshake.
 class NetworkHost(
     private val host: String,
     private val port: Int,
 ) : GameHost {
-    // The server owns the room; the client never opens one. Returned id is a sentinel
-    // PlayScreen passes straight back to join().
-    override fun open(cfg: SessionConfig): RoomId = REMOTE
+    override fun open(cfg: SessionConfig): RoomId = REMOTE // sentinel; client never opens
 
     override fun join(room: RoomId): GameSession {
         val socket = Socket()
@@ -38,8 +34,7 @@ class NetworkHost(
                 else -> error("unexpected handshake reply: ${reply::class.simpleName}")
             }
         } catch (e: Throwable) {
-            // Any handshake failure (connect refused, EOF, rejection) must not leak the
-            // socket. NetworkGameSession owns it only on the success path above.
+            // Any handshake failure must not leak the socket.
             runCatching { socket.close() }
             throw e
         }

@@ -4,7 +4,6 @@ import com.github.quillraven.fleks.Component
 import com.github.quillraven.fleks.ComponentType
 import com.yikers.control.Controller
 
-// Attaches a Controller (human or bot) to a climber. ControlSystem reads it.
 data class Controlled(val controller: Controller) : Component<Controlled> {
     override fun type() = Controlled
     companion object : ComponentType<Controlled>()

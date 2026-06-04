@@ -6,14 +6,10 @@ class RunState {
     var dead = false
     var startCamera = false
 
-    // True once a player has spawned. Run-end keys off this so a still-empty room
-    // (dynamic roster, nobody joined yet) doesn't read as "everyone died".
+    // True once a player spawned, so an empty room doesn't read as "everyone died".
     var started = false
 
-    // Rising kill-line = the world Y of the screen's BOTTOM edge (meters). The scroll
-    // system advances it; each client centers its own camera on it (using its local
-    // view height, never sent here). Init 0 (ground). Resets per run since RunState is
-    // rebuilt each newRun().
+    // Rising kill-line: world Y of the screen's bottom edge (meters).
     var scrollY = 0f
     var totalTime = 0f
     var lastPlatformY = 0f

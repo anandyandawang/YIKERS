@@ -24,11 +24,8 @@ import com.yikers.ecs.system.WallFollowSystem
 import com.yikers.physics.PlayContactListener
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
-// A full headless run: the same Fleks + Box2D worlds PlayScreen.newRun() builds,
-// MINUS the GL-bound RenderSystem and its camera/ShapeRenderer injectables (the
-// sim is camera-free; the kill-line is RunState.scrollY). `use {}` it -> close()
-// disposes both worlds. This is the canonical replacement for the old inline
-// Harness + buildHeadlessWorld().
+// A full headless run: the same worlds PlayScreen builds, minus the GL RenderSystem.
+// close() disposes both worlds.
 class SimHarness(
     val physicsWorld: PhysicsWorld,
     val world: World,
@@ -41,7 +38,6 @@ class SimHarness(
     val startCamera: Boolean get() = runState.startCamera
     val scrollY: Float get() = runState.scrollY
 
-    // Primary climber ball center Y, in meters.
     fun playerY(): Float = with(world) { player[Physics].body.position.y }
 
     override fun close() {
@@ -50,8 +46,7 @@ class SimHarness(
     }
 }
 
-// Build a full headless run. seed != null => reproducible platform/boulder layout.
-// Default roster is a lone autopilot climber (test-side stand-in for a bot client).
+// Build a full headless run (seed => reproducible layout; default lone autopilot).
 fun buildSim(
     controllers: List<Controller> = listOf(AutopilotController()),
     seed: Long? = null,
@@ -75,13 +70,10 @@ fun buildSim(
             add(runState)
             add(arena)
             add(refs)
-            // NO camera / ShapeRenderer: RenderSystem excluded, sim is camera-free.
         }
-        // Canonical 10-system list in PlayScreen order MINUS RenderSystem. Gdx.gl
-        // is null headless, so adding any GL system here NPEs immediately.
+        // 10-system PlayScreen order minus RenderSystem (Gdx.gl is null headless).
         systems {
-            // AutopilotSystem replaces production's ControlSystem here: it drives the
-            // climbers (which are RelayControllers in production, fed by clients).
+            // AutopilotSystem replaces production's ControlSystem here.
             add(AutopilotSystem())
             add(MoveSystem())
             add(JumpSystem())
@@ -96,7 +88,6 @@ fun buildSim(
     }
 
     val factory = EntityFactory(world, pw, cfg, refs)
-    // Spread the roster across the floor exactly like PlayScreen.spawnRoster.
     val r = GameConfig.BALL_RADIUS
     val minCx = GameConfig.WALL_THICKNESS + r
     val maxCx = GameConfig.WIDTH - GameConfig.WALL_THICKNESS - r
@@ -112,8 +103,7 @@ fun buildSim(
         )
     }
     refs.player = climbers.first()
-    // Climbers are spawned directly here (not via GameInstance.addPlayer), so flag
-    // the run started -> DeathSystem can end it once every climber dies.
+    // Spawned directly (not via addPlayer), so flag started for DeathSystem.
     runState.started = true
 
     if (spawnPlatforms) {

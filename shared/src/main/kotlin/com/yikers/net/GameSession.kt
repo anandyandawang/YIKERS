@@ -1,9 +1,6 @@
 package com.yikers.net
 
-// A client's handle to ONE running game (room). THE SEAM: the client codes only
-// against this. LocalGameSession implements it in-process today; a future
-// NetworkClient implements the same interface over a socket, leaving client code
-// untouched. The GameInstance behind it is never exposed to the client.
+// A client's handle to ONE room: THE SEAM. Local + Network implement it identically.
 interface GameSession {
     val playerId: Int   // the slot this client owns, assigned at join
 
