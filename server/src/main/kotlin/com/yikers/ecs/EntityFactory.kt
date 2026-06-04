@@ -82,11 +82,15 @@ class EntityFactory(
         controller: Controller,
         color: Color = Color.CORAL,
         group: Short = PLAYER_GROUP,
+        slot: Int = -1,
     ): Entity {
         val r = GameConfig.BALL_RADIUS
         val ballBody = pw.body {
             type = BodyDef.BodyType.DynamicBody
             position.set(x + r, y + r)
+            // Never sleep: a nudged ball can otherwise doze off mid-air (Box2D stops
+            // gravity for sleepers) and a vx=0 relay won't wake it -> stuck climber.
+            allowSleep = false
             circle(radius = r) {
                 density = 500f
                 friction = 10f
@@ -115,7 +119,7 @@ class EntityFactory(
             it += Intent()
             it += JumpState()
             it += LethalHit()
-            it += Player()
+            it += Player(slot)
             it += Augments()              // inert: no augments owned yet
         }
         ballBody.userData = entity

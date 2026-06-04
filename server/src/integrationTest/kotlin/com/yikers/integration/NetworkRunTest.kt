@@ -6,6 +6,7 @@ import com.yikers.net.InputCommand
 import com.yikers.net.NetworkHost
 import com.yikers.net.RoomId
 import com.yikers.net.SessionConfig
+import com.yikers.net.WorldSnapshot
 import com.yikers.support.HeadlessGdx
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -23,7 +24,7 @@ class NetworkRunTest {
         val server = DedicatedServer(
             name = "test",
             tcpPort = 0, // OS-assigned ephemeral port
-            cfg = SessionConfig(humans = 2, bots = 0, seed = SEED),
+            cfg = SessionConfig(seed = SEED),
         )
         server.start()
 
@@ -38,22 +39,22 @@ class NetworkRunTest {
             val s1 = p1.snapshot()
             assertTrue(s0.tick > 0) { "client 0 must receive server snapshots" }
             assertTrue(s1.tick > 0) { "client 1 must receive server snapshots" }
-            assertTrue(s0.entities.size >= 2) {
-                "both climbers must exist in the shared world; got ${s0.entities.size}"
+            assertTrue(playerBalls(s0).size >= 2) {
+                "both climbers must exist in the shared world; got ${playerBalls(s0).size}"
             }
 
-            // End-to-end input: hold right on client 0. Its climber is the primary
-            // (first entity, same convention as GameInstanceTest) and must move right —
-            // proving InputCommand travelled the wire, hit the sim, and came back in a
-            // snapshot. Short window so the rising kill-line can't end the run first.
-            val x0 = p0.snapshot().entities.first().x
+            // End-to-end input: hold right on client 0. Its OWN ball is the one tagged
+            // playerId 0 on the wire, so we track exactly that one and prove it
+            // advanced — an InputCommand travelled the wire, hit the sim, and came back
+            // in a snapshot. Short window so the rising kill-line can't end the run.
+            val x0 = ballOf(p0.snapshot(), 0).x
             repeat(40) {
                 p0.submitInput(InputCommand(playerId = 0, vx = 4f, jump = false))
                 Thread.sleep(16)
             }
-            val x1 = p0.snapshot().entities.first().x
+            val x1 = ballOf(p0.snapshot(), 0).x
             assertTrue(x1 > x0) {
-                "client 0's held-right input must move its climber over the wire; x0=$x0 x1=$x1"
+                "client 0's held-right input must move its own climber over the wire; x0=$x0 x1=$x1"
             }
 
             // The shared clock keeps advancing on its own thread.
@@ -66,6 +67,12 @@ class NetworkRunTest {
             server.stop()
         }
     }
+
+    // Player balls only (slot id >= 0; boulders are -1).
+    private fun playerBalls(snap: WorldSnapshot) = snap.entities.filter { it.playerId >= 0 }
+
+    // The ball owned by a given slot.
+    private fun ballOf(snap: WorldSnapshot, id: Int) = snap.entities.first { it.playerId == id }
 
     // Spin until the client has seen at least one real frame, or give up.
     private fun awaitTick(session: GameSession, timeoutMs: Long = 5000) {

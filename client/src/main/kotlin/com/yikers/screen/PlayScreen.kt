@@ -11,13 +11,12 @@ import com.yikers.YikersGame
 import com.yikers.config.GameConfig
 import com.yikers.config.Prefs
 import com.yikers.control.BootConfig
-import com.yikers.control.HumanInput
-import com.yikers.control.Roster
+import com.yikers.control.HumanAgent
 import com.yikers.net.GameHost
-import com.yikers.net.GameSession
 import com.yikers.net.LocalHost
 import com.yikers.net.NetworkGameSession
 import com.yikers.net.NetworkHost
+import com.yikers.net.Participant
 import com.yikers.net.RoomId
 import com.yikers.net.Session
 import com.yikers.net.SessionConfig
@@ -25,10 +24,9 @@ import com.yikers.net.WorldSnapshot
 import com.yikers.render.SnapshotRenderer
 import ktx.app.KtxScreen
 
-// Owns one run from the CLIENT side: opens a room on a (local) host, then each
-// frame captures input -> submits it -> steps the session -> renders the returned
-// snapshot. No Fleks/Box2D here — the sim lives behind the GameSession seam, so
-// singleplayer is just an embedded local server.
+// Owns one run from the client side: open a room, join a client per participant,
+// then each frame pump every participant -> step the run -> render the snapshot.
+// Local: 1 human + any bots side by side. Network: just this human.
 class PlayScreen(private val game: YikersGame) : KtxScreen {
     private val camera = OrthographicCamera()
     // ExtendViewport: pin world WIDTH to full screen width (no side bars) and let
@@ -46,16 +44,14 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
 
     private var host: GameHost? = null
     private var room: RoomId? = null
-    private var session: GameSession? = null
-    private var humanInputs: List<HumanInput> = emptyList()
+    // This client (always exactly one human). Its session owns the clock.
+    private var human: Participant? = null
     private var speed = 0f
 
-    private var deadElapsed = 0f
     private var persisted = false
 
     override fun show() {
         teardown()
-        deadElapsed = 0f
         persisted = false
 
         camera.position.set(GameConfig.WIDTH / 2f, GameConfig.HEIGHT / 2f, 0f)
@@ -64,13 +60,11 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         hudCamera.update()
 
         val cfg = SessionConfig(
-            humans = Roster.humans,
-            bots = Roster.bots,
             seed = BootConfig.seed,
             previousHighScore = Prefs.highScore,
         )
 
-        // Same seam, two hosts: LocalHost embeds the sim (singleplayer, unchanged),
+        // Same seam, two hosts: LocalHost embeds the sim (singleplayer + local bots),
         // NetworkHost connects to a LAN server. For network the server already opened
         // the room, so open() returns a sentinel and join() does the handshake.
         val h: GameHost = if (Session.mode == Session.Mode.NETWORK) {
@@ -78,40 +72,46 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         } else {
             LocalHost()
         }
-        val s = try {
+        try {
             val r = h.open(cfg)
-            val sess = h.join(r)
             room = r
-            sess
+            host = h
+            if (Session.mode == Session.Mode.NETWORK) {
+                joinNetwork(h, r, cfg)
+            } else {
+                joinLocal(h, r, cfg)
+            }
         } catch (e: Exception) {
             // Server unreachable / refused -> drop back to the lobby instead of crashing.
             Gdx.app.error("YIKERS", "join failed", e)
             game.setScreen<LobbyScreen>()
             return
         }
-        host = h
-        session = s
+    }
 
-        if (s is NetworkGameSession) {
-            // The server assigned our player slot and owns the run params; drive only
-            // our own climber, read feel from the Welcome config.
-            speed = s.config.runConfig.horizontalSpeed
-            humanInputs = listOf(HumanInput(s.playerId))
-        } else {
-            speed = cfg.runConfig.horizontalSpeed
-            // One local human per roster slot (all on ARROWS for now, as before).
-            humanInputs = List(Roster.humans) { HumanInput(it) }
-        }
+    // One human client; the server owns the clock + any bots. Feel from the Welcome.
+    private fun joinNetwork(h: GameHost, r: RoomId, cfg: SessionConfig) {
+        val s = h.join(r)
+        speed = (s as? NetworkGameSession)?.config?.runConfig?.horizontalSpeed
+            ?: cfg.runConfig.horizontalSpeed
+        human = Participant(s, HumanAgent(speed))
+    }
+
+    // Local run: one human client on the embedded room. Bots, if any, are separate
+    // :bot socket clients against a server — never spawned here.
+    private fun joinLocal(h: GameHost, r: RoomId, cfg: SessionConfig) {
+        speed = cfg.runConfig.horizontalSpeed
+        human = Participant(h.join(r), HumanAgent(speed))
     }
 
     override fun render(delta: Float) {
-        val session = session ?: return
+        val human = human ?: return
         ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
         viewport.apply()
 
-        humanInputs.forEach { session.submitInput(it.poll(speed)) }
-        session.step(delta)
-        val snap = session.snapshot()
+        human.pump(delta)                 // decide + submit our input
+        human.session.step(delta)         // local: advances the sim; network: no-op
+        val snap = human.session.snapshot()
 
         // Center on the kill-line using OUR local view height — never sent to the
         // server, so two clients on different aspects each frame their own view.
@@ -153,17 +153,13 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     }
 
     // On death: persist the high score once (server tracks the in-run max; the
-    // client owns the saved Prefs). Hands-free returns to the menu (which auto-
-    // starts again) after a beat; otherwise wait for a key/tap.
+    // client owns the saved Prefs), then wait for a key/tap to return to the menu.
     private fun handleGameOver(delta: Float, snap: WorldSnapshot) {
         if (!persisted) {
             if (snap.highScore > Prefs.highScore) Prefs.highScore = snap.highScore
             persisted = true
         }
-        if (Roster.handsFree) {
-            deadElapsed += delta
-            if (deadElapsed >= AUTO_RESTART_DELAY) game.setScreen<MenuScreen>()
-        } else if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) || Gdx.input.justTouched()) {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE) || Gdx.input.justTouched()) {
             game.setScreen<MenuScreen>()
         }
     }
@@ -179,17 +175,11 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     override fun dispose() = teardown()
 
     private fun teardown() {
-        // Close the session first: for a network client this shuts the socket + reader
-        // thread (no-op for the local session). Then drop the room on the host.
-        session?.close()
+        // Close our session (network: our socket; local: drops our player), then the room.
+        human?.close()
         host?.let { h -> room?.let { h.close(it) } }
         host = null
         room = null
-        session = null
-        humanInputs = emptyList()
-    }
-
-    companion object {
-        private const val AUTO_RESTART_DELAY = 1.5f
+        human = null
     }
 }

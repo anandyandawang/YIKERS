@@ -3,7 +3,7 @@ package com.yikers.integration
 import com.github.quillraven.fleks.configureWorld
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
-import com.yikers.control.BotController
+import com.yikers.control.RelayController
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.Intent
@@ -40,7 +40,7 @@ class JumpAugmentTest {
         }
         TestWorld(pw, world, runState, refs, cfg).use { tw ->
             val factory = EntityFactory(world, pw, cfg, refs)
-            val player = factory.spawnPlayer(x = GameConfig.WIDTH / 2f, y = 1f, controller = BotController())
+            val player = factory.spawnPlayer(x = GameConfig.WIDTH / 2f, y = 1f, controller = RelayController(0))
             refs.player = player
 
             with(world) {

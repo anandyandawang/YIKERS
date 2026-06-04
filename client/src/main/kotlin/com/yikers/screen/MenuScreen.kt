@@ -12,14 +12,12 @@ import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.yikers.YikersGame
 import com.yikers.config.GameConfig
 import com.yikers.config.Prefs
-import com.yikers.control.Roster
 import com.yikers.net.Session
 import ktx.app.KtxScreen
 
 // Title + high score + two mode buttons. Single Player runs the embedded local sim
 // (unchanged classic play); Multiplayer opens the LAN lobby. Drawn the asset-free way
-// (ShapeRenderer rects + BitmapFont), hit-tested via unprojected touch. Hands-free
-// (0 humans) still auto-starts a local run after a beat, so attract/recording is kept.
+// (ShapeRenderer rects + BitmapFont), hit-tested via unprojected touch.
 class MenuScreen(private val game: YikersGame) : KtxScreen {
     private val viewport = ExtendViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX)
     private val layout = GlyphLayout()
@@ -28,27 +26,18 @@ class MenuScreen(private val game: YikersGame) : KtxScreen {
     private val singleBtn = Rectangle()
     private val multiBtn = Rectangle()
 
-    private var elapsed = 0f
-
     override fun show() {
-        elapsed = 0f
         // Returning here from a network run resets the routing so the next click of
-        // Single Player (or a hands-free auto-start) takes the local path.
+        // Single Player takes the local path.
         Session.local()
     }
 
     override fun render(delta: Float) {
-        elapsed += delta
         viewport.apply()
         val w = viewport.worldWidth
         val h = viewport.worldHeight
         layoutButtons(w, h)
 
-        // Hands-free attract mode: auto-start a local run, no input needed.
-        if (Roster.handsFree && elapsed >= AUTO_START_DELAY) {
-            startSinglePlayer()
-            return
-        }
         handleInput()
 
         ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
@@ -120,7 +109,6 @@ class MenuScreen(private val game: YikersGame) : KtxScreen {
     }
 
     companion object {
-        private const val AUTO_START_DELAY = 0.6f
         private val BUTTON_FILL = Color(0.18f, 0.22f, 0.30f, 1f)
     }
 }

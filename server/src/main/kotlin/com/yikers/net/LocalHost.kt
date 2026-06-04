@@ -2,9 +2,8 @@ package com.yikers.net
 
 import com.yikers.sim.GameInstance
 
-// In-process host: singleplayer and a future LAN host both use this; it just holds
-// one room locally. A future DedicatedHost serves many rooms over a socket behind
-// the same GameHost interface, so client code never changes.
+// In-process host (singleplayer + the embedded server behind DedicatedServer).
+// join() allocates a player slot per call, so opening a room is player-free.
 class LocalHost : GameHost {
     private val rooms = LinkedHashMap<RoomId, GameInstance>()
     private var counter = 0
@@ -15,8 +14,14 @@ class LocalHost : GameHost {
         return id
     }
 
-    override fun join(room: RoomId): GameSession =
-        LocalGameSession(rooms[room] ?: error("no such room: ${room.code}"))
+    override fun join(room: RoomId): GameSession {
+        val inst = instance(room)
+        return LocalGameSession(inst, inst.addPlayer())
+    }
+
+    // The room's instance, for a host that drives the clock itself (DedicatedServer).
+    fun instance(room: RoomId): GameInstance =
+        rooms[room] ?: error("no such room: ${room.code}")
 
     override fun list(): List<RoomInfo> =
         rooms.map { (id, inst) -> RoomInfo(id, inst.players, open = true) }

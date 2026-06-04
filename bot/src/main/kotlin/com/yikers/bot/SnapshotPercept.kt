@@ -1,0 +1,148 @@
+package com.yikers.bot
+
+import com.yikers.config.GameConfig
+import com.yikers.config.RunConfig
+import com.yikers.net.EntitySnap
+import com.yikers.net.PlatformSnap
+import com.yikers.net.ShapeKind
+import com.yikers.net.WorldSnapshot
+import kotlin.math.abs
+
+// Rebuilds BotSelf + BotView from snapshots. Identity is exact (playerId on the
+// wire); velocity and grounded are derived (kept off the wire by design). Velocity
+// is keyed off the sim tick, not wall-clock, so it's correct however fast the client
+// pumps (re-reading the same frame would self-difference to a bogus vy = 0).
+class SnapshotPercept(private val runConfig: RunConfig) {
+    val self = BotSelf()
+    val view = BotView()
+
+    private var lastTick = -1L
+    private var haveSelf = false
+    private var lastSelfY = 0f
+    private val prevBoulderX = HashMap<Int, Float>()
+    private val prevBoulderY = HashMap<Int, Float>()
+    private val gravity = abs(GameConfig.GRAVITY * runConfig.gravityScale)
+
+    fun update(snap: WorldSnapshot, myId: Int) {
+        self.speed = runConfig.horizontalSpeed
+        self.jumpVelocity = runConfig.jumpVelocity
+        view.gravityPxS2 = gravity
+
+        val advanced = snap.tick != lastTick
+        val frameDt = if (lastTick < 0) 0f else (snap.tick - lastTick) / GameConfig.SIM_HZ.toFloat()
+
+        locateSelf(snap, myId, advanced, frameDt)
+        fillHoles(snap.platforms, self.y)
+        view.distToKillLine = self.y - snap.scrollY
+        fillBoulders(snap.entities, advanced, frameDt)
+        self.grounded = inferGrounded(snap.platforms)
+
+        if (advanced) lastTick = snap.tick
+    }
+
+    private fun locateSelf(snap: WorldSnapshot, myId: Int, advanced: Boolean, frameDt: Float) {
+        val mine = snap.entities.firstOrNull { it.playerId == myId } ?: return  // not spawned yet
+        self.x = mine.x
+        self.y = mine.y
+        if (advanced) {
+            self.vy = if (haveSelf && frameDt > 0f) (mine.y - lastSelfY) / frameDt else 0f
+            lastSelfY = mine.y
+            haveSelf = true
+        }
+    }
+
+    // Two lowest holes above the ball + the support slab below it. holeWidth ~ 0
+    // (a bridged/eased slab) reads as solid.
+    private fun fillHoles(platforms: List<PlatformSnap>, py: Float) {
+        var firstY = Float.MAX_VALUE
+        var firstCx = GameConfig.WIDTH / 2f
+        var firstW = 0f
+        var secondY = Float.MAX_VALUE
+        var secondCx = GameConfig.WIDTH / 2f
+        var secondW = 0f
+        var supY = -Float.MAX_VALUE
+        var supCx = GameConfig.WIDTH / 2f
+        var supW = 0f
+        for (p in platforms) {
+            val holeW = if (p.holeWidth <= HOLE_EPS) 0f else p.holeWidth
+            val cx = if (holeW <= 0f) GameConfig.WIDTH / 2f else p.holeX + p.holeWidth / 2f
+            if (p.y > py) {
+                if (p.y < firstY) {
+                    secondY = firstY; secondCx = firstCx; secondW = firstW
+                    firstY = p.y; firstCx = cx; firstW = holeW
+                } else if (p.y < secondY) {
+                    secondY = p.y; secondCx = cx; secondW = holeW
+                }
+            } else if (p.y > supY) {
+                supY = p.y; supCx = cx; supW = holeW
+            }
+        }
+        view.targetHoleCenterX = firstCx
+        view.targetHoleWidth = firstW
+        view.targetPlatformY =
+            if (firstY == Float.MAX_VALUE) py + GameConfig.PLATFORM_INTERVALS else firstY
+        view.nextHoleCenterX = secondCx
+        view.nextHoleWidth = if (secondY == Float.MAX_VALUE) 0f else secondW
+        view.supportHoleCenterX = supCx
+        view.supportHoleWidth = if (supY == -Float.MAX_VALUE) 0f else supW
+    }
+
+    // Boulders = non-player circles. Velocity by id-matched frame diff; a recycled
+    // boulder teleports (jump > MAX_PLAUSIBLE_STEP), so clamp that to zero.
+    private fun fillBoulders(entities: List<EntitySnap>, advanced: Boolean, frameDt: Float) {
+        var n = 0
+        for (e in entities) {
+            if (n >= view.boulderX.size) break
+            if (e.kind != ShapeKind.CIRCLE || e.playerId >= 0) continue
+            view.boulderX[n] = e.x
+            view.boulderY[n] = e.y
+            if (advanced) {
+                val px = prevBoulderX[e.id]
+                val py = prevBoulderY[e.id]
+                if (frameDt > 0f && px != null && py != null) {
+                    val recycled = abs(e.x - px) > MAX_PLAUSIBLE_STEP || abs(e.y - py) > MAX_PLAUSIBLE_STEP
+                    view.boulderVx[n] = if (recycled) 0f else (e.x - px) / frameDt
+                    view.boulderVy[n] = if (recycled) 0f else (e.y - py) / frameDt
+                } else {
+                    view.boulderVx[n] = 0f
+                    view.boulderVy[n] = 0f
+                }
+            }
+            n++
+        }
+        view.boulderCount = n
+
+        if (advanced) {
+            prevBoulderX.clear()
+            prevBoulderY.clear()
+            for (e in entities) {
+                if (e.kind != ShapeKind.CIRCLE || e.playerId >= 0) continue
+                prevBoulderX[e.id] = e.x
+                prevBoulderY[e.id] = e.y
+            }
+        }
+    }
+
+    // Resting on a solid top with ~0 vertical speed. The speed gate rejects the
+    // airborne apex; the surface gate rejects free-fall over a hole.
+    private fun inferGrounded(platforms: List<PlatformSnap>): Boolean {
+        if (abs(self.vy) > GROUNDED_VY_BAND) return false
+        val r = GameConfig.BALL_RADIUS
+        val ballBottom = self.y - r
+        if (ballBottom <= GameConfig.GROUND_HEIGHT + GROUNDED_GAP) return true
+        for (p in platforms) {
+            val top = p.y + GameConfig.PLATFORM_HEIGHT
+            if (abs(ballBottom - top) > GROUNDED_GAP) continue
+            val overHole = p.holeWidth > HOLE_EPS && self.x > p.holeX && self.x < p.holeX + p.holeWidth
+            if (!overHole) return true
+        }
+        return false
+    }
+
+    private companion object {
+        const val MAX_PLAUSIBLE_STEP = 0.5f // m/frame; past this = a recycle teleport
+        const val HOLE_EPS = 0.02f
+        const val GROUNDED_VY_BAND = 0.8f
+        const val GROUNDED_GAP = 0.08f
+    }
+}

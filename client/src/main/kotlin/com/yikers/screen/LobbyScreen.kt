@@ -149,13 +149,13 @@ class LobbyScreen(private val game: YikersGame) : KtxScreen {
         }
     }
 
-    // Start an in-process server (humans=2) and immediately join it as player 0. Other
-    // clients find it via discovery, or direct-connect to 127.0.0.1 on the same box.
+    // Start an in-process server and join it as a human client. Bots, if wanted, are
+    // separate :bot socket clients pointed at this port — the server can't tell them
+    // from people. Prefer the well-known port (direct-connect when discovery is
+    // blocked); fall back to ephemeral if taken.
     private fun startHost() {
-        val cfg = SessionConfig(humans = 2, bots = 0)
+        val cfg = SessionConfig()
         val name = "Host @ ${hostName()}"
-        // Prefer the well-known port so a second local client can direct-connect even
-        // if UDP discovery is blocked; fall back to an ephemeral port if it's taken.
         val server = runCatching { DedicatedServer(name, DEFAULT_TCP_PORT, cfg) }
             .getOrElse { DedicatedServer(name, 0, cfg) }
         server.start()

@@ -1,17 +1,19 @@
 package com.yikers.sim
 
 import com.badlogic.gdx.math.MathUtils
+import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.Family
 import com.github.quillraven.fleks.World
 import com.github.quillraven.fleks.configureWorld
 import com.yikers.config.GameConfig
-import com.yikers.control.BotController
-import com.yikers.control.Controller
-import com.yikers.control.HumanRelayController
 import com.yikers.control.Palette
+import com.yikers.control.RelayController
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.buildArena
+import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.PlatformC
+import com.yikers.ecs.component.Physics
+import com.yikers.ecs.component.Player
 import com.yikers.ecs.component.RenderShape
 import com.yikers.ecs.component.Transform
 import com.yikers.ecs.resource.Refs
@@ -32,14 +34,14 @@ import com.yikers.net.PlatformSnap
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
 import com.yikers.physics.PlayContactListener
+import java.util.concurrent.ConcurrentLinkedQueue
 import ktx.box2d.createWorld
 import ktx.math.vec2
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
-// One authoritative game world: Box2D + Fleks + RNG, fully headless (no GL). This
-// is what PlayScreen.newRun() used to build inline, minus the render system + its
-// camera/ShapeRenderer. It owns its own clock via tick(); a host runs many of these
-// (one per room), each independent.
+// One authoritative game world: Box2D + Fleks + RNG, headless. Roster is dynamic:
+// each joining client (human or bot, the instance can't tell) gets a slot via
+// addPlayer(); the platform/boulder layout is built up front so the seed is stable.
 class GameInstance(private val cfg: SessionConfig) {
     private val runState = RunState().apply {
         highScore = cfg.previousHighScore
@@ -47,13 +49,24 @@ class GameInstance(private val cfg: SessionConfig) {
     private val physicsWorld: PhysicsWorld =
         createWorld(gravity = vec2(0f, GameConfig.GRAVITY * cfg.runConfig.gravityScale))
     private val refs = Refs()
-    private val relays = ArrayList<HumanRelayController>()
     private val world: World
-    private val renderables: Family
+    private val factory: EntityFactory
+    private val playerRenderables: Family   // balls: stamp playerId from Player.slot
+    private val propRenderables: Family      // boulders etc: playerId = -1
     private val platforms: Family
     private var tickCount = 0L
 
-    val players: Int get() = cfg.humans + cfg.bots
+    // Slots are reserved off the tick thread (accept thread needs one synchronously
+    // for the handshake); spawn/despawn run on the tick thread via pendingOps so
+    // Box2D is only mutated between steps.
+    private val slotLock = Any()
+    private val usedSlots = HashSet<Int>()
+    private val relays = HashMap<Int, RelayController>()
+    private val entitiesBySlot = HashMap<Int, Entity>()
+    private val pendingOps = ConcurrentLinkedQueue<() -> Unit>()
+
+    // Live player count (reserved slots). Cheap, thread-safe — used by host listings.
+    val players: Int get() = synchronized(slotLock) { usedSlots.size }
 
     init {
         cfg.seed?.let { MathUtils.random.setSeed(it) }
@@ -65,8 +78,7 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(runState)
                 add(arena)
                 add(refs)
-                // NO camera / ShapeRenderer: the sim is headless; the client renders
-                // from snapshots.
+                // No camera / ShapeRenderer: headless; the client renders snapshots.
             }
             systems {
                 add(ControlSystem())
@@ -81,11 +93,11 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(DeathSystem())
             }
         }
-        renderables = world.family { all(Transform, RenderShape) }
+        playerRenderables = world.family { all(Transform, RenderShape, Player) }
+        propRenderables = world.family { all(Transform, RenderShape).none(Player) }
         platforms = world.family { all(PlatformC) }
 
-        val factory = EntityFactory(world, physicsWorld, cfg.runConfig, refs)
-        buildRoster(factory)
+        factory = EntityFactory(world, physicsWorld, cfg.runConfig, refs)
         for (i in 1..GameConfig.NUM_PLATFORMS) {
             factory.spawnPlatform(GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS)
         }
@@ -95,54 +107,99 @@ class GameInstance(private val cfg: SessionConfig) {
         physicsWorld.setContactListener(PlayContactListener(world))
     }
 
-    // Same layout as the old PlayScreen.spawnRoster: humans first (each a relay fed
-    // by the client over the seam), then bots; spread across the floor in distinct
-    // colors; first spawned = primary (PlatformSystem scores off it). Empty roster
-    // (0 humans, 0 bots) falls back to a lone bot = hands-free attract mode.
-    private fun buildRoster(factory: EntityFactory) {
-        val controllers: List<Controller> =
-            List(cfg.humans) { HumanRelayController(it).also { r -> relays += r } } +
-                List(cfg.bots) { BotController() }
-        val roster = controllers.ifEmpty { listOf(BotController()) }
-        val n = roster.size
-        val r = GameConfig.BALL_RADIUS
-        val minCx = GameConfig.WALL_THICKNESS + r
-        val maxCx = GameConfig.WIDTH - GameConfig.WALL_THICKNESS - r
-        roster.forEachIndexed { i, controller ->
-            val cx = if (n == 1) GameConfig.WIDTH / 2f
-            else minCx + (maxCx - minCx) * (i.toFloat() / (n - 1))
-            val e = factory.spawnPlayer(
-                x = cx - r,
-                y = GameConfig.GROUND_HEIGHT,
-                controller = controller,
-                color = Palette.distinct(i, n),
-                group = (-(i + 1)).toShort(),
-            )
-            if (i == 0) refs.player = e
+    // Reserve the lowest free slot; ball spawns next tick. Safe from any thread.
+    fun addPlayer(): Int {
+        val slot = synchronized(slotLock) {
+            var s = 0
+            while (s in usedSlots) s++
+            usedSlots.add(s)
+            s
         }
+        pendingOps.add { spawnPlayerSlot(slot) }
+        return slot
     }
 
-    // Route a human's input to its relay. Out-of-range playerId is ignored.
+    // Queue a client's ball to despawn on the next tick and free its slot.
+    fun removePlayer(slot: Int) {
+        pendingOps.add { despawnPlayerSlot(slot) }
+    }
+
+    // Route a client's input to its relay. Out-of-range / not-yet-spawned slot is
+    // ignored (the relay appears once the spawn op has run).
     fun applyInput(cmd: InputCommand) {
-        relays.getOrNull(cmd.playerId)?.submit(cmd)
+        relays[cmd.playerId]?.submit(cmd)
     }
 
     fun tick(deltaTime: Float) {
+        drainOps()                 // spawn/despawn between steps -> Box2D-safe
         world.update(deltaTime)
+        tickCount++
     }
 
-    // Extract renderable state for the client. Reads exactly the fields the old
-    // RenderSystem drew; arena (ground/walls) is redrawn client-side from GameConfig.
+    private fun drainOps() {
+        while (true) {
+            val op = pendingOps.poll() ?: break
+            op()
+        }
+    }
+
+    // --- roster mutation, tick thread only (run from drainOps) --------------------
+
+    private fun spawnPlayerSlot(slot: Int) {
+        val r = GameConfig.BALL_RADIUS
+        val cx = laneX(slot)
+        val controller = RelayController(slot)
+        val e = factory.spawnPlayer(
+            x = cx - r,
+            y = GameConfig.GROUND_HEIGHT,
+            controller = controller,
+            color = Palette.distinct(slot, COLOR_SPREAD),
+            group = (-(slot + 1)).toShort(),
+            slot = slot,
+        )
+        relays[slot] = controller
+        entitiesBySlot[slot] = e
+        if (refs.player == null) refs.player = e   // first joiner = primary (scroll/score)
+        runState.started = true
+    }
+
+    private fun despawnPlayerSlot(slot: Int) {
+        val e = entitiesBySlot.remove(slot) ?: run {
+            synchronized(slotLock) { usedSlots.remove(slot) }
+            return
+        }
+        relays.remove(slot)
+        with(world) {
+            physicsWorld.destroyBody(e[Physics].body)
+            physicsWorld.destroyBody(e[FootSensor].footBody)
+        }
+        world -= e
+        if (refs.player == e) refs.player = entitiesBySlot.values.firstOrNull()
+        synchronized(slotLock) { usedSlots.remove(slot) }
+    }
+
+    // Renderable state for the client; the arena is redrawn client-side from GameConfig.
     fun snapshot(): WorldSnapshot {
         val ents = ArrayList<EntitySnap>()
         val plats = ArrayList<PlatformSnap>()
         with(world) {
-            renderables.forEach { e ->
+            playerRenderables.forEach { e ->
                 val t = e[Transform]
                 val rs = e[RenderShape]
                 ents += EntitySnap(
                     rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
                     t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
+                    id = e.id,
+                    playerId = e[Player].slot,
+                )
+            }
+            propRenderables.forEach { e ->
+                val t = e[Transform]
+                val rs = e[RenderShape]
+                ents += EntitySnap(
+                    rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
+                    t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
+                    id = e.id,
                 )
             }
             platforms.forEach { e ->
@@ -151,7 +208,7 @@ class GameInstance(private val cfg: SessionConfig) {
             }
         }
         return WorldSnapshot(
-            tick = tickCount++,
+            tick = tickCount,
             entities = ents,
             platforms = plats,
             score = runState.score,
@@ -164,5 +221,10 @@ class GameInstance(private val cfg: SessionConfig) {
     fun close() {
         world.dispose()
         physicsWorld.dispose()
+    }
+
+    private companion object {
+        // Nominal palette spread for distinct climber hues; slot index picks one.
+        const val COLOR_SPREAD = 8
     }
 }

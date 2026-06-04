@@ -6,7 +6,6 @@ import com.github.quillraven.fleks.World
 import com.github.quillraven.fleks.configureWorld
 import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
-import com.yikers.control.BotController
 import com.yikers.control.Controller
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.buildArena
@@ -14,7 +13,6 @@ import com.yikers.ecs.component.Physics
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.BoulderSystem
-import com.yikers.ecs.system.ControlSystem
 import com.yikers.ecs.system.DeathSystem
 import com.yikers.ecs.system.JumpSystem
 import com.yikers.ecs.system.MoveSystem
@@ -53,9 +51,9 @@ class SimHarness(
 }
 
 // Build a full headless run. seed != null => reproducible platform/boulder layout.
-// Default roster is a lone bot (same path PlayScreen.spawnRoster takes for n == 1).
+// Default roster is a lone autopilot climber (test-side stand-in for a bot client).
 fun buildSim(
-    controllers: List<Controller> = listOf(BotController()),
+    controllers: List<Controller> = listOf(AutopilotController()),
     seed: Long? = null,
     spawnPlatforms: Boolean = true,
     spawnBoulders: Boolean = true,
@@ -82,7 +80,9 @@ fun buildSim(
         // Canonical 10-system list in PlayScreen order MINUS RenderSystem. Gdx.gl
         // is null headless, so adding any GL system here NPEs immediately.
         systems {
-            add(ControlSystem())
+            // AutopilotSystem replaces production's ControlSystem here: it drives the
+            // climbers (which are RelayControllers in production, fed by clients).
+            add(AutopilotSystem())
             add(MoveSystem())
             add(JumpSystem())
             add(WallFollowSystem())
@@ -112,6 +112,9 @@ fun buildSim(
         )
     }
     refs.player = climbers.first()
+    // Climbers are spawned directly here (not via GameInstance.addPlayer), so flag
+    // the run started -> DeathSystem can end it once every climber dies.
+    runState.started = true
 
     if (spawnPlatforms) {
         for (i in 1..GameConfig.NUM_PLATFORMS) {

@@ -20,7 +20,7 @@ class NetworkGameSession(
     private val socket: Socket,
     private val input: DataInputStream,
     private val output: DataOutputStream,
-    val playerId: Int,
+    override val playerId: Int,
     val config: SessionConfig,
 ) : GameSession {
     // Latest authoritative frame; benign empty snapshot until the first arrives.

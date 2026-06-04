@@ -54,6 +54,9 @@ dependencies {
     // runs headless in production too), so only the JUnit bits are test-only.
     "integrationTestImplementation"(libs.junit.jupiter)
     "integrationTestRuntimeOnly"(libs.junit.platform.launcher)
+    // The socket-bot integration test drives a real bot client against the server.
+    // (Production: the server has no bot dependency; this is test-only.)
+    "integrationTestImplementation"(project(":bot"))
 }
 
 val integrationTest = tasks.register<Test>("integrationTest") {

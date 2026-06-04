@@ -2,12 +2,10 @@ package com.yikers.control
 
 import com.yikers.net.InputCommand
 
-// Server-side stand-in for a human climber. The real input is read on the client
-// (HumanInput -> InputCommand) and relayed across the GameSession seam; this holds
-// the latest command and feeds it to ControlSystem like any other Controller, so
-// ControlSystem itself is unchanged. Jump is latched so an edge press is never
+// Server-side stand-in for one client's climber (human or bot, indistinguishable).
+// Holds the latest relayed InputCommand. Jump is latched so an edge press isn't
 // dropped between client frame rate and sim ticks.
-class HumanRelayController(val slot: Int) : Controller {
+class RelayController(val slot: Int) : Controller {
     private var vx = 0f
     private var jumpLatched = false
 
