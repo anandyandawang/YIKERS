@@ -8,7 +8,6 @@ import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.yikers.YikersGame
-import com.yikers.bot.BotAgent
 import com.yikers.config.GameConfig
 import com.yikers.config.Prefs
 import com.yikers.control.BootConfig
@@ -101,14 +100,13 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         participants = listOf(Participant(s, HumanAgent(speed)))
     }
 
-    // Local run: one human + BootConfig.bots in-process bots on the embedded room,
-    // all pumped in the render loop. The embedded server never knows they're bots.
+    // Local run: one human client on the embedded room. Bots, if any, are separate
+    // :bot socket clients against a server — never spawned here.
     private fun joinLocal(h: GameHost, r: RoomId, cfg: SessionConfig) {
         speed = cfg.runConfig.horizontalSpeed
-        val human = Participant(h.join(r), HumanAgent(speed))
-        val bots = List(BootConfig.bots) { Participant(h.join(r), BotAgent(cfg.runConfig)) }
-        participants = listOf(human) + bots
-        clock = participants.first().session
+        val s = h.join(r)
+        participants = listOf(Participant(s, HumanAgent(speed)))
+        clock = s
     }
 
     override fun render(delta: Float) {

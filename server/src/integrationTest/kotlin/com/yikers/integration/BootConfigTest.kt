@@ -15,25 +15,14 @@ import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
-// BootConfig reads the bot count + RNG seed from system properties at launch (there
-// is no humans count: 1 client == 1 player). The seed test proves the same seed
-// reproduces the same procedural platform layout.
+// BootConfig reads the RNG seed from system properties at launch. The seed test
+// proves the same seed reproduces the same procedural platform layout.
 @HeadlessGdx
 class BootConfigTest {
 
     @AfterEach
     fun reset() {
-        System.clearProperty("yikers.bots")
         System.clearProperty("yikers.seed")
-    }
-
-    @Test
-    fun botCountReadsFromSystemProperties() {
-        System.setProperty("yikers.bots", "3")
-
-        BootConfig.apply()
-
-        assertEquals(3, BootConfig.bots) { "bots must read from yikers.bots" }
     }
 
     @Test

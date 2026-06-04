@@ -39,10 +39,6 @@ class DedicatedServer(
     // thread, so all sim mutation stays single-threaded.
     private val inbound = ConcurrentLinkedQueue<InputCommand>()
 
-    // In-process clients pumped each tick on the authoritative thread. Opaque: the
-    // server never inspects them, only the InputCommands they submit.
-    private val localPumps = java.util.concurrent.CopyOnWriteArrayList<(Float) -> Unit>()
-
     @Volatile
     private var running = false
 
@@ -60,16 +56,6 @@ class DedicatedServer(
     @Volatile
     var latestSnapshot: WorldSnapshot? = null
         private set
-
-    // An in-process client handle (its own slot, no socket). The caller wraps it in a
-    // Participant and registers its pump via addLocalPump.
-    fun localSession(): GameSession = LocalGameSession(instance, instance.addPlayer())
-
-    // Pump a callback once per tick on the authoritative thread (~1-tick lag, no
-    // socket round-trip). The server never inspects it.
-    fun addLocalPump(pump: (Float) -> Unit) {
-        localPumps.add(pump)
-    }
 
     fun start() {
         running = true
@@ -140,7 +126,6 @@ class DedicatedServer(
                 val cmd = inbound.poll() ?: break
                 instance.applyInput(cmd)
             }
-            localPumps.forEach { it(DT) }   // in-process clients submit for this step
             instance.tick(DT)
             val snap = instance.snapshot()
             latestSnapshot = snap
