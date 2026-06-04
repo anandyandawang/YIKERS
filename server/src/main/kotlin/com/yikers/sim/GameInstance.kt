@@ -6,7 +6,6 @@ import com.github.quillraven.fleks.Family
 import com.github.quillraven.fleks.World
 import com.github.quillraven.fleks.configureWorld
 import com.yikers.config.GameConfig
-import com.yikers.config.laneX
 import com.yikers.control.Palette
 import com.yikers.control.RelayController
 import com.yikers.ecs.EntityFactory

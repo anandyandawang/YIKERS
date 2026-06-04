@@ -1,4 +1,6 @@
-package com.yikers.config
+package com.yikers.sim
+
+import com.yikers.config.GameConfig
 
 // Deterministic spawn lane (ball-center X, meters) per player slot — pure function
 // of the slot, so it works with dynamic join. Slot 0 = center, then alternate
