@@ -4,6 +4,7 @@ import com.yikers.net.wire.Wire
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.net.NetworkInterface
 import java.net.SocketTimeoutException
 
 // Client-side LAN discovery: broadcast one query, collect ServerAd replies for a
@@ -22,11 +23,13 @@ object LanScanner {
             return emptyList()
         }
         try {
-            val query = DatagramPacket(
-                DISCOVERY_QUERY, DISCOVERY_QUERY.size,
-                InetAddress.getByName(BROADCAST), DISCOVERY_PORT,
-            )
-            runCatching { socket.send(query) }
+            broadcastTargets().forEach { addr ->
+                runCatching {
+                    socket.send(
+                        DatagramPacket(DISCOVERY_QUERY, DISCOVERY_QUERY.size, addr, DISCOVERY_PORT),
+                    )
+                }
+            }
 
             val deadline = System.currentTimeMillis() + timeoutMs
             val buf = ByteArray(256)
@@ -50,5 +53,22 @@ object LanScanner {
             socket.close()
         }
         return found.values.toList()
+    }
+
+    // iOS / Darwin routinely drops the limited broadcast 255.255.255.255, so also
+    // target each interface's subnet-directed broadcast (e.g. 192.168.1.255). Keep
+    // the limited broadcast as a fallback for desktop / Android, which route it fine.
+    private fun broadcastTargets(): List<InetAddress> {
+        val targets = LinkedHashSet<InetAddress>()
+        runCatching {
+            for (ni in NetworkInterface.getNetworkInterfaces()) {
+                if (!ni.isUp || ni.isLoopback) continue
+                for (ia in ni.interfaceAddresses) {
+                    ia.broadcast?.let { targets.add(it) } // IPv4 subnet broadcast; null for IPv6
+                }
+            }
+        }
+        targets.add(InetAddress.getByName(BROADCAST)) // 255.255.255.255 fallback
+        return targets.toList()
     }
 }

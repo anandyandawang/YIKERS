@@ -20,6 +20,10 @@
 	<string>${app.build}</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- iOS 14+ gates all LAN traffic behind this. Needed for LAN game discovery
+	     (UDP broadcast) and joining a host on the same Wi-Fi. -->
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>YIKERS finds nearby games on your Wi-Fi for local multiplayer.</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
 		<string>armv7</string>
