@@ -9,6 +9,7 @@ kotlin = "2.3.21"
 kotlinxSerialization = "1.9.0"
 robovm = "2.3.24"
 agp = "8.7.3"
+konsist = "0.17.3"
 
 [libraries]
 gdx = { module = "com.badlogicgames.gdx:gdx", version.ref = "gdx" }
@@ -35,6 +36,10 @@ kotlinx-serialization-cbor = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 # No version: pulled in by junit-jupiter alignment at test runtime.
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }
+
+# Konsist: static architecture tests. Reads Kotlin source off disk to lock the
+# module boundaries (engine-free layers, no upward deps, sanctioned client->server).
+konsist = { module = "com.lemonappdev:konsist", version.ref = "konsist" }
 
 robovm-rt = { module = "com.mobidevelop.robovm:robovm-rt", version.ref = "robovm" }
 robovm-cocoatouch = { module = "com.mobidevelop.robovm:robovm-cocoatouch", version.ref = "robovm" }
