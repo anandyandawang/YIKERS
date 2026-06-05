@@ -1,6 +1,6 @@
-// Shared = pure-Kotlin contract between client and server: configs + the net seam
-// types (InputCommand, WorldSnapshot, SessionConfig, GameSession/GameHost). No gdx,
-// no Box2D, no Fleks — so neither side drags the other's engine in.
+// Shared = pure-Kotlin contract between client and server: configs + the wire seam
+// types (InputCommand, WorldSnapshot, SessionConfig + wire/*). No gdx, no Box2D, no
+// Fleks — so neither side drags the other's engine in. Client-only seam = :client-shared.
 plugins {
     alias(libs.plugins.kotlin.jvm)
     // kotlinx-serialization: generates the CBOR codec for the @Serializable wire

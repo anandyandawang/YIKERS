@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     testImplementation(project(":shared"))
+    testImplementation(project(":client-shared"))
     testImplementation(project(":server"))
     testImplementation(project(":client"))
     testImplementation(project(":bot"))
