@@ -1,4 +1,4 @@
-package com.yikers.integration
+package com.yikers.e2e
 
 import com.yikers.net.DedicatedServer
 import com.yikers.net.GameSession
@@ -11,8 +11,7 @@ import com.yikers.support.HeadlessGdx
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// End-to-end LAN: two socket clients share one DedicatedServer's authoritative world.
-// Connects straight to server.port (UDP discovery may be CI-blocked).
+// Connect straight to the port; UDP discovery may be CI-blocked.
 @HeadlessGdx
 class NetworkRunTest {
 
@@ -20,7 +19,7 @@ class NetworkRunTest {
     fun twoClientsConnectToOneServerAndShareTheWorld() {
         val server = DedicatedServer(
             name = "test",
-            tcpPort = 0, // OS-assigned ephemeral port
+            tcpPort = 0,
             cfg = SessionConfig(seed = SEED),
         )
         server.start()
@@ -39,7 +38,6 @@ class NetworkRunTest {
                 "both climbers must exist in the shared world; got ${playerBalls(s0).size}"
             }
 
-            // Hold right on client 0; prove its own ball advanced over the wire.
             val x0 = ballOf(p0.snapshot(), 0).x
             repeat(40) {
                 p0.submitInput(InputCommand(playerId = 0, vx = 4f, jump = false))

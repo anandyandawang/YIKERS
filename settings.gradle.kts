@@ -20,5 +20,5 @@ val localProps = file("local.properties")
 val buildAndroid = localProps.exists() &&
     java.util.Properties().apply { localProps.inputStream().use { load(it) } }.getProperty("sdk.dir") != null
 
-include("shared", "server", "client", "lwjgl3", "ios", "bot")
+include("shared", "server", "client", "lwjgl3", "ios", "bot", "e2e")
 if (buildAndroid) include("android")

@@ -1,4 +1,4 @@
-package com.yikers.integration
+package com.yikers.e2e
 
 import com.yikers.bot.app.BotRunner
 import com.yikers.net.DedicatedServer
@@ -7,7 +7,6 @@ import com.yikers.support.HeadlessGdx
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-// A bot reaches the bot-blind server as a socket client and climbs.
 @HeadlessGdx
 class NetworkBotTest {
 
