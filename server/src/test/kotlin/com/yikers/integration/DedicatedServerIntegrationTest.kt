@@ -57,6 +57,33 @@ class DedicatedServerIntegrationTest {
     }
 
     @Test
+    fun jumpInputLaunchesClimberUpward() {
+        withServer { server ->
+            val client = RawClient("127.0.0.1", server.port)
+            try {
+                client.join()
+                // Settle a few ticks so the climber rests grounded on the floor.
+                repeat(10) { Thread.sleep(16) }
+                val groundY = client.ball().y
+
+                // Jump is latched server-side, so one jump=true launches; send a few
+                // frames and track the peak height the snapshot stream reports.
+                var peakY = groundY
+                repeat(30) {
+                    client.send(jump = true)
+                    Thread.sleep(16)
+                    peakY = maxOf(peakY, client.ball().y)
+                }
+                assertTrue(peakY > groundY + 1f) {
+                    "jump input must launch the climber above its grounded height; groundY=$groundY peakY=$peakY"
+                }
+            } finally {
+                client.close()
+            }
+        }
+    }
+
+    @Test
     fun serverReStampsForgedPlayerId() {
         withServer { server ->
             val p0 = RawClient("127.0.0.1", server.port)
