@@ -11,6 +11,8 @@ dependencies {
     // server BootConfig — the only sim types a launcher touches at boot.
     api(project(":shared"))
     api(project(":server"))
+    // The client seam (GameSession/GameHost/NetworkHost/Participant), shared with :bot.
+    implementation(project(":client-shared"))
     implementation(libs.gdx)
     // ktx = idiomatic Kotlin libGDX helpers (app shell + graphics + math).
     implementation(libs.ktx.app)
