@@ -1,4 +1,4 @@
-package com.yikers.integration
+package com.yikers.component
 
 import com.yikers.support.HeadlessGdx
 import com.yikers.support.buildSim

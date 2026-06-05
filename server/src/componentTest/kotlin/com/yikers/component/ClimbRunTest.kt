@@ -1,4 +1,4 @@
-package com.yikers.integration
+package com.yikers.component
 
 import com.yikers.config.GameConfig
 import com.yikers.support.HeadlessGdx
@@ -14,7 +14,9 @@ class ClimbRunTest {
 
     @Test
     fun botClimbsScoresThenDiesAtKillLine() {
-        buildSim(seed = SEED).use { h ->
+        // Boulder-free: this test covers climb + score + kill-line death, not
+        // boulder-dodging (the scripted climber has no dodge logic).
+        buildSim(seed = SEED, spawnBoulders = false).use { h ->
             val startY = h.playerY()
 
             h.world.step(CLIMB_SECONDS * 60)

@@ -1,6 +1,6 @@
 // Server = the headless authoritative sim (Fleks + Box2D + RNG). No gdx-graphics /
 // GL: the world runs without a screen, the client renders from snapshots. The
-// integration tests (the real sim seam CI reuses) live here.
+// unit + component sim tests (the real sim seam CI reuses) live here.
 plugins {
     alias(libs.plugins.kotlin.jvm)
     // CBOR codec for the wire types shared with the client over the LAN socket.
@@ -27,50 +27,50 @@ dependencies {
     implementation(libs.kotlinx.serialization.cbor)
     // Headless backend + desktop natives are now MAIN runtime deps (not just test)
     // so `:server:run` can boot a HeadlessApplication and load the Box2D native —
-    // GameInstance.createWorld needs it. integrationTest inherits these via
-    // extendsFrom(implementation/runtimeOnly), so its old explicit lines are gone.
+    // GameInstance.createWorld needs it. The test tiers inherit these via the
+    // main classpath, so they need no explicit headless/native lines.
     implementation(libs.gdx.backend.headless)
     runtimeOnly(variantOf(libs.gdx.platform) { classifier("natives-desktop") })
     runtimeOnly(variantOf(libs.gdx.box2d.platform) { classifier("natives-desktop") })
 }
 
-// --- integration tests -------------------------------------------------------
-// Headless sim tests (Fleks + Box2D, no GL) live in their own source set so the
-// default `test` set stays free for plain unit tests. The sim is the real
-// integration seam CI + an eventual iOS build reuse.
+// --- test tiers --------------------------------------------------------------
+// Two headless tiers (Fleks + Box2D, no GL). `test` = unit: one system,
+// hand-poked. `componentTest` = whole-sim-in-process: the full system list
+// driven end to end. The real black-box integration layer (server + socket +
+// real bot) lives in the :e2e module, not here.
+
+// JUnit on the unit `test` set; game deps come from main via testImplementation.
+dependencies {
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+// componentTest sees both main and the unit tier's shared support (HeadlessGdx,
+// Sim helpers, Spawns) so that support lives in one place.
 sourceSets {
-    create("integrationTest") {
-        compileClasspath += sourceSets["main"].output
-        runtimeClasspath += sourceSets["main"].output
+    create("componentTest") {
+        compileClasspath += sourceSets["main"].output + sourceSets["test"].output
+        runtimeClasspath += sourceSets["main"].output + sourceSets["test"].output
     }
 }
 
-// The integration config tree mirrors main's, so tests see all game deps.
-configurations["integrationTestImplementation"].extendsFrom(configurations["implementation"])
-configurations["integrationTestRuntimeOnly"].extendsFrom(configurations["runtimeOnly"])
+// Inherit the unit tier's deps (game deps + JUnit); no per-set re-declare.
+configurations["componentTestImplementation"].extendsFrom(configurations["testImplementation"])
+configurations["componentTestRuntimeOnly"].extendsFrom(configurations["testRuntimeOnly"])
 
-dependencies {
-    // Headless backend + desktop natives are inherited from main now (the server
-    // runs headless in production too), so only the JUnit bits are test-only.
-    "integrationTestImplementation"(libs.junit.jupiter)
-    "integrationTestRuntimeOnly"(libs.junit.platform.launcher)
-    // Sim autopilot reuses the bot's brain (BotBrain) in-process; test-only, no socket.
-    "integrationTestImplementation"(project(":bot"))
-}
-
-val integrationTest = tasks.register<Test>("integrationTest") {
-    description = "Runs headless Fleks + Box2D integration tests."
+val componentTest = tasks.register<Test>("componentTest") {
+    description = "Runs headless whole-sim component tests (Fleks + Box2D)."
     group = "verification"
-    testClassesDirs = sourceSets["integrationTest"].output.classesDirs
-    classpath = sourceSets["integrationTest"].runtimeClasspath
+    testClassesDirs = sourceSets["componentTest"].output.classesDirs
+    classpath = sourceSets["componentTest"].runtimeClasspath
     useJUnitPlatform()
     testLogging { events("passed", "skipped", "failed") }
     shouldRunAfter(tasks.named("test"))
 }
 
-tasks.named("check") { dependsOn(integrationTest) }
+tasks.named("check") { dependsOn(componentTest) }
 
-// `test` source set kept as the unit-test seam (none yet).
 tasks.named<Test>("test") {
     useJUnitPlatform()
 }
