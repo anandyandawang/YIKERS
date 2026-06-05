@@ -24,6 +24,9 @@ jobs:
           - name: integration
             task: server:integrationTest
             report: server/build/reports/tests/integrationTest
+          - name: e2e
+            task: e2e:test
+            report: e2e/build/reports/tests/test
     steps:
       - uses: actions/checkout@v4
 
