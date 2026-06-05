@@ -35,42 +35,17 @@ dependencies {
 }
 
 // --- test tiers --------------------------------------------------------------
-// Two headless tiers (Fleks + Box2D, no GL). `test` = unit: one system,
-// hand-poked. `componentTest` = whole-sim-in-process: the full system list
-// driven end to end. The real black-box integration layer (server + socket +
-// real bot) lives in the :e2e module, not here.
-
-// JUnit on the unit `test` set; game deps come from main via testImplementation.
+// One headless `test` set (Fleks + Box2D, no GL), split by package: `unit` =
+// one system, hand-poked; `component` = whole-sim-in-process, the full system
+// list driven end to end. Both are fast, so one source set + one task. The real
+// black-box integration layer (server + socket + real bot) lives in :e2e.
+// Game deps come from main via testImplementation; only JUnit is test-only.
 dependencies {
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
 }
 
-// componentTest sees both main and the unit tier's shared support (HeadlessGdx,
-// Sim helpers, Spawns) so that support lives in one place.
-sourceSets {
-    create("componentTest") {
-        compileClasspath += sourceSets["main"].output + sourceSets["test"].output
-        runtimeClasspath += sourceSets["main"].output + sourceSets["test"].output
-    }
-}
-
-// Inherit the unit tier's deps (game deps + JUnit); no per-set re-declare.
-configurations["componentTestImplementation"].extendsFrom(configurations["testImplementation"])
-configurations["componentTestRuntimeOnly"].extendsFrom(configurations["testRuntimeOnly"])
-
-val componentTest = tasks.register<Test>("componentTest") {
-    description = "Runs headless whole-sim component tests (Fleks + Box2D)."
-    group = "verification"
-    testClassesDirs = sourceSets["componentTest"].output.classesDirs
-    classpath = sourceSets["componentTest"].runtimeClasspath
-    useJUnitPlatform()
-    testLogging { events("passed", "skipped", "failed") }
-    shouldRunAfter(tasks.named("test"))
-}
-
-tasks.named("check") { dependsOn(componentTest) }
-
 tasks.named<Test>("test") {
     useJUnitPlatform()
+    testLogging { events("passed", "skipped", "failed") }
 }
