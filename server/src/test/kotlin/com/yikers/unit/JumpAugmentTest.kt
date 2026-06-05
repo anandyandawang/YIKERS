@@ -1,4 +1,4 @@
-package com.yikers.integration
+package com.yikers.unit
 
 import com.github.quillraven.fleks.configureWorld
 import com.yikers.config.GameConfig

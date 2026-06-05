@@ -46,9 +46,9 @@ class SimHarness(
     }
 }
 
-// Build a full headless run (seed => reproducible layout; default lone autopilot).
+// Build a full headless run (seed => reproducible layout; default lone climber).
 fun buildSim(
-    controllers: List<Controller> = listOf(AutopilotController()),
+    controllers: List<Controller> = listOf(ScriptedClimber()),
     seed: Long? = null,
     spawnPlatforms: Boolean = true,
     spawnBoulders: Boolean = true,
@@ -73,8 +73,8 @@ fun buildSim(
         }
         // 10-system PlayScreen order minus RenderSystem (Gdx.gl is null headless).
         systems {
-            // AutopilotSystem replaces production's ControlSystem here.
-            add(AutopilotSystem())
+            // ScriptedClimbSystem replaces production's ControlSystem here.
+            add(ScriptedClimbSystem())
             add(MoveSystem())
             add(JumpSystem())
             add(WallFollowSystem())
