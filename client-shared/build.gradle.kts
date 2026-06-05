@@ -4,11 +4,11 @@
 // (that stays :shared, which the server also needs); pure JVM, no gdx/Box2D/Fleks.
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    `java-library`
 }
 
 dependencies {
-    // api, not implementation: the seam types name :shared contract types (WorldSnapshot,
-    // SessionConfig, InputCommand) in their signatures, so consumers must see them too.
-    api(project(":shared"))
+    // implementation, not api: the seam names :shared types (WorldSnapshot, InputCommand)
+    // in its signatures, but :client and :bot declare :shared directly, so no need to
+    // re-export it. Anyone wanting only the seam does not get :shared dragged along.
+    implementation(project(":shared"))
 }
