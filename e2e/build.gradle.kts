@@ -6,6 +6,7 @@ plugins {
 dependencies {
     testImplementation(project(":shared"))
     testImplementation(project(":server"))
+    testImplementation(project(":client"))
     testImplementation(project(":bot"))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
