@@ -70,22 +70,27 @@ class BotBrain {
         return steer(v.nextHoleCenterX - self.x, deadzone, self.speed)
     }
 
-    // Nearest boulder closing on our lane -> step away (flip at a wall). null = none.
+    // Nearest threat (boulder OR other player) closing on our lane -> step away
+    // (flip at a wall). null = none.
     private fun dodgeVx(self: BotSelf, v: BotView): Float? {
         var bestTtc = Float.MAX_VALUE
         var bestVx = 0f
-        for (i in 0 until v.boulderCount) {
-            if (abs(self.y - v.boulderY[i]) >= DANGER_BAND_PX) continue
-            val rx = v.boulderX[i] - self.x
-            val bvx = v.boulderVx[i]
-            if (rx * bvx >= 0f) continue
-            if (abs(rx) >= DANGER_RADIUS_PX * 3f) continue
-            val ttc = abs(rx) / maxOf(0.01f, abs(bvx))
-            if (ttc <= REACT_HORIZON_S && ttc < bestTtc) {
-                bestTtc = ttc
-                bestVx = bvx
+        fun scan(count: Int, xs: FloatArray, ys: FloatArray, vxs: FloatArray) {
+            for (i in 0 until count) {
+                if (abs(self.y - ys[i]) >= DANGER_BAND_PX) continue
+                val rx = xs[i] - self.x
+                val bvx = vxs[i]
+                if (rx * bvx >= 0f) continue
+                if (abs(rx) >= DANGER_RADIUS_PX * 3f) continue
+                val ttc = abs(rx) / maxOf(0.01f, abs(bvx))
+                if (ttc <= REACT_HORIZON_S && ttc < bestTtc) {
+                    bestTtc = ttc
+                    bestVx = bvx
+                }
             }
         }
+        scan(v.boulderCount, v.boulderX, v.boulderY, v.boulderVx)
+        scan(v.otherCount, v.otherX, v.otherY, v.otherVx)
         if (bestTtc == Float.MAX_VALUE) return null
         var dir = -sign(bestVx)
         if (dir == 0f) dir = 1f
