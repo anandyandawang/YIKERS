@@ -13,7 +13,7 @@ import kotlin.concurrent.thread
 // One server-side client; send() takes a per-connection write lock so the tick
 // thread's broadcast can't interleave bytes.
 class ClientConn(
-    val playerId: Int,
+    val slot: Int,
     private val socket: Socket,
     private val input: DataInputStream,
     private val output: DataOutputStream,
@@ -26,12 +26,12 @@ class ClientConn(
     private var reader: Thread? = null
 
     fun start(onInput: (InputCommand) -> Unit, onClose: (ClientConn) -> Unit) {
-        reader = thread(name = "yikers-conn-$playerId", isDaemon = true) {
+        reader = thread(name = "yikers-conn-$slot", isDaemon = true) {
             try {
                 while (alive) {
                     val bytes = Framing.readFrame(input) ?: break // clean EOF
                     val env = Wire.decode(bytes)
-                    if (env is Input) onInput(env.cmd.copy(playerId = playerId))
+                    if (env is Input) onInput(env.cmd.copy(slot = slot))
                 }
             } catch (_: Exception) {
                 // peer gone -> disconnect

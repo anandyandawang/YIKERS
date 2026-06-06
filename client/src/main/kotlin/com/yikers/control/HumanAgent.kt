@@ -26,7 +26,7 @@ class HumanAgent(
     private val speed: Float,
     private val keys: KeyProfile = KeyProfile.ARROWS,
 ) : InputAgent {
-    override fun decide(world: WorldSnapshot, selfId: Int, dt: Float): InputCommand {
+    override fun decide(world: WorldSnapshot, slot: Int, dt: Float): InputCommand {
         val tilt = Gdx.input.isPeripheralAvailable(Input.Peripheral.Accelerometer)
         val vx = if (tilt) {
             -speed * Gdx.input.accelerometerX
@@ -42,6 +42,6 @@ class HumanAgent(
         val jump = Gdx.input.isKeyJustPressed(keys.jump1) ||
             Gdx.input.isKeyJustPressed(keys.jump2) ||
             (keys.touchJumps && Gdx.input.justTouched())
-        return InputCommand(selfId, vx, jump)
+        return InputCommand(slot, vx, jump)
     }
 }

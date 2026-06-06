@@ -23,7 +23,7 @@ class RawClient(host: String, port: Int) {
     private val output = DataOutputStream(socket.getOutputStream().buffered())
 
     // -1 until the server assigns a slot in Welcome.
-    var playerId: Int = -1
+    var slot: Int = -1
         private set
 
     // Latest snapshot the reader thread saw; null until the first frame lands.
@@ -42,16 +42,16 @@ class RawClient(host: String, port: Int) {
         Framing.writeFrame(output, Wire.encode(Join()))
         val reply = readEnvelope()
         if (reply is Welcome) {
-            playerId = reply.playerId
+            slot = reply.slot
             startReader()
         }
         return reply
     }
 
-    // One tick's intent. playerId here is whatever we pass; the server re-stamps
-    // it to our own slot, so a forged id can't drive someone else's climber.
-    fun send(playerId: Int = this.playerId, vx: Float = 0f, jump: Boolean = false) {
-        Framing.writeFrame(output, Wire.encode(Input(InputCommand(playerId, vx, jump))))
+    // One tick's intent. slot here is whatever we pass; the server re-stamps it to
+    // our own seat, so a forged id can't drive someone else's climber.
+    fun send(slot: Int = this.slot, vx: Float = 0f, jump: Boolean = false) {
+        Framing.writeFrame(output, Wire.encode(Input(InputCommand(slot, vx, jump))))
     }
 
     fun close() {
@@ -60,7 +60,7 @@ class RawClient(host: String, port: Int) {
     }
 
     private fun startReader() {
-        reader = thread(name = "raw-client-$playerId", isDaemon = true) {
+        reader = thread(name = "raw-client-$slot", isDaemon = true) {
             try {
                 while (alive) {
                     val env = readEnvelope()

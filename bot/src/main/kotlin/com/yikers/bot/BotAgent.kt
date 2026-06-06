@@ -9,9 +9,9 @@ class BotAgent(runConfig: RunConfig) : InputAgent {
     private val percept = SnapshotPercept(runConfig)
     private val brain = BotBrain()
 
-    override fun decide(world: WorldSnapshot, selfId: Int, dt: Float): InputCommand {
-        percept.update(world, selfId)
+    override fun decide(world: WorldSnapshot, slot: Int, dt: Float): InputCommand {
+        percept.update(world, slot)
         val move = brain.decide(percept.self, percept.view)
-        return InputCommand(selfId, move.vx, move.jump)
+        return InputCommand(slot, move.vx, move.jump)
     }
 }

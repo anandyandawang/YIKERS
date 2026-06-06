@@ -6,8 +6,8 @@ class Participant(
     private val agent: InputAgent,
 ) {
     fun pump(dt: Float) {
-        val cmd = agent.decide(session.snapshot(), session.playerId, dt)
-        session.submitInput(cmd.copy(playerId = session.playerId))
+        val cmd = agent.decide(session.snapshot(), session.slot, dt)
+        session.submitInput(cmd.copy(slot = session.slot))
     }
 
     fun close() = session.close()

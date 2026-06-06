@@ -9,6 +9,7 @@ import com.yikers.control.KeyProfile
 import com.yikers.net.DedicatedServer
 import com.yikers.net.NetworkHost
 import com.yikers.net.Participant
+import com.yikers.net.PlayerSnap
 import com.yikers.net.RoomId
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
@@ -59,8 +60,8 @@ class LanPartyTest {
             // One authoritative frame -- the client sessions may not have received
             // their first snapshot yet, but the server already spawned all four.
             val snap0 = server.latestSnapshot!!
-            val hostId = hostSession.playerId
-            val guestId = guestSession.playerId
+            val hostId = hostSession.slot
+            val guestId = guestSession.slot
             val botIds = playerSlots(snap0).filter { it != hostId && it != guestId }
             assertTrue(botIds.size == 2) { "the other two slots must be the bots; got $botIds" }
 
@@ -111,14 +112,16 @@ class LanPartyTest {
     }
 
     private fun playerSlots(snap: WorldSnapshot) =
-        snap.entities.filter { it.playerId >= 0 }.map { it.playerId }.distinct()
+        snap.entities.filterIsInstance<PlayerSnap>().map { it.slot }.distinct()
 
     private fun playerCount(server: DedicatedServer) =
         server.latestSnapshot?.let { playerSlots(it).size } ?: 0
 
-    private fun ballOf(snap: WorldSnapshot, id: Int) = snap.entities.first { it.playerId == id }
+    private fun ballOf(snap: WorldSnapshot, id: Int) =
+        snap.entities.filterIsInstance<PlayerSnap>().first { it.slot == id }
 
-    private fun xOf(snap: WorldSnapshot, id: Int) = snap.entities.firstOrNull { it.playerId == id }?.x
+    private fun xOf(snap: WorldSnapshot, id: Int) =
+        snap.entities.filterIsInstance<PlayerSnap>().firstOrNull { it.slot == id }?.x
 
     private fun awaitPlayers(server: DedicatedServer, n: Int, timeoutMs: Long = 8000): Boolean {
         val deadline = System.currentTimeMillis() + timeoutMs
@@ -140,7 +143,7 @@ class LanPartyTest {
         while (System.currentTimeMillis() < deadline) {
             val snap = server.latestSnapshot
             if (snap != null && slots.any { id ->
-                    val y = snap.entities.firstOrNull { it.playerId == id }?.y
+                    val y = snap.entities.filterIsInstance<PlayerSnap>().firstOrNull { it.slot == id }?.y
                     y != null && y > (baseY[id] ?: 0f) + BOT_CLIMB
                 }
             ) {

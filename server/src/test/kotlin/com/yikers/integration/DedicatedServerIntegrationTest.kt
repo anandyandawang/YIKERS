@@ -1,7 +1,7 @@
 package com.yikers.integration
 
 import com.yikers.net.DedicatedServer
-import com.yikers.net.EntitySnap
+import com.yikers.net.PlayerSnap
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
 import com.yikers.net.wire.Rejected
@@ -24,7 +24,7 @@ class DedicatedServerIntegrationTest {
             try {
                 val welcome = client.join()
                 assertTrue(welcome is Welcome) { "first reply must be Welcome, got $welcome" }
-                assertEquals(0, (welcome as Welcome).playerId) { "first peer gets slot 0" }
+                assertEquals(0, (welcome as Welcome).slot) { "first peer gets slot 0" }
 
                 val snap = client.awaitSnapshot()
                 assertTrue(snap.tick > 0) { "server must stream ticking snapshots" }
@@ -99,8 +99,8 @@ class DedicatedServerIntegrationTest {
                 val p0x0 = p0.ball().x
                 val p1x0 = p1.ball().x
                 repeat(40) {
-                    p0.send(playerId = 1, vx = 4f)   // forge p1's slot, push right
-                    p1.send(playerId = 0, vx = -4f)  // forge p0's slot, push left
+                    p0.send(slot = 1, vx = 4f)   // forge p1's slot, push right
+                    p1.send(slot = 0, vx = -4f)  // forge p0's slot, push left
                     Thread.sleep(16)
                 }
                 val p0dx = p0.ball().x - p0x0
@@ -158,10 +158,10 @@ class DedicatedServerIntegrationTest {
     }
 
     // This peer's own climber from the latest streamed snapshot.
-    private fun RawClient.ball(): EntitySnap =
-        awaitSnapshot().entities.first { it.playerId == playerId }
+    private fun RawClient.ball(): PlayerSnap =
+        awaitSnapshot().entities.filterIsInstance<PlayerSnap>().first { it.slot == slot }
 
-    private fun playerBalls(snap: WorldSnapshot) = snap.entities.filter { it.playerId >= 0 }
+    private fun playerBalls(snap: WorldSnapshot) = snap.entities.filterIsInstance<PlayerSnap>()
 
     companion object {
         private const val SEED = 42L

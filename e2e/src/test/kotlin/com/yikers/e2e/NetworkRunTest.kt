@@ -4,6 +4,7 @@ import com.yikers.net.DedicatedServer
 import com.yikers.net.GameSession
 import com.yikers.net.InputCommand
 import com.yikers.net.NetworkHost
+import com.yikers.net.PlayerSnap
 import com.yikers.net.RoomId
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
@@ -40,7 +41,7 @@ class NetworkRunTest {
 
             val x0 = ballOf(p0.snapshot(), 0).x
             repeat(40) {
-                p0.submitInput(InputCommand(playerId = 0, vx = 4f, jump = false))
+                p0.submitInput(InputCommand(slot = 0, vx = 4f, jump = false))
                 Thread.sleep(16)
             }
             val x1 = ballOf(p0.snapshot(), 0).x
@@ -58,9 +59,10 @@ class NetworkRunTest {
         }
     }
 
-    private fun playerBalls(snap: WorldSnapshot) = snap.entities.filter { it.playerId >= 0 }
+    private fun playerBalls(snap: WorldSnapshot) = snap.entities.filterIsInstance<PlayerSnap>()
 
-    private fun ballOf(snap: WorldSnapshot, id: Int) = snap.entities.first { it.playerId == id }
+    private fun ballOf(snap: WorldSnapshot, id: Int) =
+        snap.entities.filterIsInstance<PlayerSnap>().first { it.slot == id }
 
     private fun awaitTick(session: GameSession, timeoutMs: Long = 5000) {
         val deadline = System.currentTimeMillis() + timeoutMs

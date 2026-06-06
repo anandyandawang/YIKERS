@@ -17,7 +17,7 @@ class NetworkGameSession(
     private val socket: Socket,
     private val input: DataInputStream,
     private val output: DataOutputStream,
-    override val playerId: Int,
+    override val slot: Int,
     val config: SessionConfig,
 ) : GameSession {
     private val latest = AtomicReference(EMPTY)
@@ -44,7 +44,7 @@ class NetworkGameSession(
         if (!alive) return
         try {
             synchronized(writeLock) {
-                Framing.writeFrame(output, Wire.encode(Input(cmd.copy(playerId = playerId))))
+                Framing.writeFrame(output, Wire.encode(Input(cmd.copy(slot = slot))))
             }
         } catch (_: IOException) {
             alive = false
