@@ -24,6 +24,9 @@ jobs:
           - name: e2e
             task: e2e:test
             report: e2e/build/reports/tests/test
+          - name: arch
+            task: "arch:test checkModuleDeps"
+            report: arch/build/reports/tests/test
     steps:
       - uses: actions/checkout@v4
 
