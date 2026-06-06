@@ -2,6 +2,9 @@ package com.yikers.bot
 
 import com.yikers.config.GameConfig
 
+// Cap on other players the bot tracks (>= maxPlayers - 1 on the default 8-seat server).
+private const val MAX_OTHER_PLAYERS = 8
+
 class BotSelf {
     var x = 0f
     var y = 0f
@@ -27,6 +30,13 @@ class BotView {
     val boulderY = FloatArray(GameConfig.NUM_PLATFORMS)
     val boulderVx = FloatArray(GameConfig.NUM_PLATFORMS)
     val boulderVy = FloatArray(GameConfig.NUM_PLATFORMS)
+
+    // Other players: obstacles too (they collide), but climbers -> measured velocity.
+    var otherCount = 0
+    val otherX = FloatArray(MAX_OTHER_PLAYERS)
+    val otherY = FloatArray(MAX_OTHER_PLAYERS)
+    val otherVx = FloatArray(MAX_OTHER_PLAYERS)
+    val otherVy = FloatArray(MAX_OTHER_PLAYERS)
 }
 
 data class BotMove(val vx: Float, val jump: Boolean)

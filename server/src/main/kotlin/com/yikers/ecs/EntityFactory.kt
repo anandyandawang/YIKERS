@@ -75,7 +75,7 @@ class EntityFactory(
         controller: Controller,
         color: Color = Color.CORAL,
         group: Short = PLAYER_GROUP,
-        slot: Int = -1,
+        slot: Int,
     ): Entity {
         val r = GameConfig.BALL_RADIUS
         val ballBody = pw.body {

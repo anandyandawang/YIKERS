@@ -4,6 +4,8 @@ import com.yikers.config.GameConfig
 import com.yikers.config.RunConfig
 import com.yikers.net.EntitySnap
 import com.yikers.net.PlatformSnap
+import com.yikers.net.PlayerSnap
+import com.yikers.net.PropSnap
 import com.yikers.net.ShapeKind
 import com.yikers.net.WorldSnapshot
 import kotlin.math.abs
@@ -19,9 +21,11 @@ class SnapshotPercept(private val runConfig: RunConfig) {
     private var lastSelfY = 0f
     private val prevBoulderX = HashMap<Int, Float>()
     private val prevBoulderY = HashMap<Int, Float>()
+    private val prevOtherX = HashMap<Int, Float>()
+    private val prevOtherY = HashMap<Int, Float>()
     private val gravity = abs(GameConfig.GRAVITY * runConfig.gravityScale)
 
-    fun update(snap: WorldSnapshot, myId: Int) {
+    fun update(snap: WorldSnapshot, mySlot: Int) {
         self.speed = runConfig.horizontalSpeed
         self.jumpVelocity = runConfig.jumpVelocity
         view.gravityPxS2 = gravity
@@ -29,17 +33,18 @@ class SnapshotPercept(private val runConfig: RunConfig) {
         val advanced = snap.tick != lastTick
         val frameDt = if (lastTick < 0) 0f else (snap.tick - lastTick) / GameConfig.SIM_HZ.toFloat()
 
-        locateSelf(snap, myId, advanced, frameDt)
+        locateSelf(snap, mySlot, advanced, frameDt)
         fillHoles(snap.platforms, self.y)
         view.distToKillLine = self.y - snap.scrollY
         fillBoulders(snap.entities, advanced, frameDt)
+        fillOthers(snap.entities, mySlot, advanced, frameDt)
         self.grounded = inferGrounded(snap.platforms)
 
         if (advanced) lastTick = snap.tick
     }
 
-    private fun locateSelf(snap: WorldSnapshot, myId: Int, advanced: Boolean, frameDt: Float) {
-        val mine = snap.entities.firstOrNull { it.playerId == myId } ?: return  // not spawned yet
+    private fun locateSelf(snap: WorldSnapshot, mySlot: Int, advanced: Boolean, frameDt: Float) {
+        val mine = snap.entities.filterIsInstance<PlayerSnap>().firstOrNull { it.slot == mySlot } ?: return  // not spawned yet
         self.x = mine.x
         self.y = mine.y
         if (advanced) {
@@ -84,13 +89,13 @@ class SnapshotPercept(private val runConfig: RunConfig) {
         view.supportHoleWidth = if (supY == -Float.MAX_VALUE) 0f else supW
     }
 
-    // Boulders = non-player circles. Velocity by id-matched frame diff; a recycle
-    // teleport (jump > MAX_PLAUSIBLE_STEP) clamps to zero.
+    // Boulders = props (PropSnap circles). Velocity by id-matched frame diff; a
+    // recycle teleport (jump > MAX_PLAUSIBLE_STEP) clamps to zero.
     private fun fillBoulders(entities: List<EntitySnap>, advanced: Boolean, frameDt: Float) {
         var n = 0
         for (e in entities) {
             if (n >= view.boulderX.size) break
-            if (e.kind != ShapeKind.CIRCLE || e.playerId >= 0) continue
+            if (e !is PropSnap || e.kind != ShapeKind.CIRCLE) continue
             view.boulderX[n] = e.x
             view.boulderY[n] = e.y
             if (advanced) {
@@ -113,9 +118,45 @@ class SnapshotPercept(private val runConfig: RunConfig) {
             prevBoulderX.clear()
             prevBoulderY.clear()
             for (e in entities) {
-                if (e.kind != ShapeKind.CIRCLE || e.playerId >= 0) continue
+                if (e !is PropSnap || e.kind != ShapeKind.CIRCLE) continue
                 prevBoulderX[e.id] = e.x
                 prevBoulderY[e.id] = e.y
+            }
+        }
+    }
+
+    // Other players collide too, but they climb -- so track them by measured
+    // velocity (not the boulder wall-bounce), keyed by slot (stable per frame).
+    private fun fillOthers(entities: List<EntitySnap>, mySlot: Int, advanced: Boolean, frameDt: Float) {
+        var n = 0
+        for (e in entities) {
+            if (n >= view.otherX.size) break
+            if (e !is PlayerSnap || e.slot == mySlot) continue
+            view.otherX[n] = e.x
+            view.otherY[n] = e.y
+            if (advanced) {
+                val px = prevOtherX[e.slot]
+                val py = prevOtherY[e.slot]
+                if (frameDt > 0f && px != null && py != null) {
+                    val recycled = abs(e.x - px) > MAX_PLAUSIBLE_STEP || abs(e.y - py) > MAX_PLAUSIBLE_STEP
+                    view.otherVx[n] = if (recycled) 0f else (e.x - px) / frameDt
+                    view.otherVy[n] = if (recycled) 0f else (e.y - py) / frameDt
+                } else {
+                    view.otherVx[n] = 0f
+                    view.otherVy[n] = 0f
+                }
+            }
+            n++
+        }
+        view.otherCount = n
+
+        if (advanced) {
+            prevOtherX.clear()
+            prevOtherY.clear()
+            for (e in entities) {
+                if (e !is PlayerSnap || e.slot == mySlot) continue
+                prevOtherX[e.slot] = e.x
+                prevOtherY[e.slot] = e.y
             }
         }
     }

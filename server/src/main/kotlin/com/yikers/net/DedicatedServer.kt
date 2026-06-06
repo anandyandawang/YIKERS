@@ -101,15 +101,15 @@ class DedicatedServer(
                 return
             }
 
-            val pid = instance.addPlayer()
-            Framing.writeFrame(output, Wire.encode(Welcome(pid, cfg)))
-            val conn = ClientConn(pid, socket, input, output)
+            val slot = instance.addPlayer()
+            Framing.writeFrame(output, Wire.encode(Welcome(slot, cfg)))
+            val conn = ClientConn(slot, socket, input, output)
             synchronized(conns) { conns.add(conn) }
             conn.start(
                 onInput = { inbound.add(it) },
                 onClose = { c ->
                     synchronized(conns) { conns.remove(c) }
-                    instance.removePlayer(c.playerId)
+                    instance.removePlayer(c.slot)
                 },
             )
         } catch (_: Exception) {

@@ -29,7 +29,7 @@ class NetworkHost(
             val reply = Framing.readFrame(input)?.let { Wire.decode(it) }
                 ?: error("server closed during handshake")
             return when (reply) {
-                is Welcome -> NetworkGameSession(socket, input, output, reply.playerId, reply.config)
+                is Welcome -> NetworkGameSession(socket, input, output, reply.slot, reply.config)
                 is Rejected -> error("server rejected connection: ${reply.reason}")
                 else -> error("unexpected handshake reply: ${reply::class.simpleName}")
             }

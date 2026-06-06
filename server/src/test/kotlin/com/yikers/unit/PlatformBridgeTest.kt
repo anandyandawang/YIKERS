@@ -144,7 +144,7 @@ class PlatformBridgeTest {
             val plat = world.spawnTestPlatform(pw, PLAT_Y, holeX = 3.0f, holeWidth = 1.0f)
 
             val factory = EntityFactory(world, pw, cfg, refs)
-            val player = factory.spawnPlayer(x = 0.5f, y = 1.5f, controller = RelayController(0))
+            val player = factory.spawnPlayer(x = 0.5f, y = 1.5f, controller = RelayController(0), slot = 0)
             refs.player = player
 
             pw.setContactListener(PlayContactListener(world))

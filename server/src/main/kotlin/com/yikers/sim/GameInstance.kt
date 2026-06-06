@@ -31,6 +31,8 @@ import com.yikers.ecs.system.WallFollowSystem
 import com.yikers.net.EntitySnap
 import com.yikers.net.InputCommand
 import com.yikers.net.PlatformSnap
+import com.yikers.net.PlayerSnap
+import com.yikers.net.PropSnap
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
 import com.yikers.physics.PlayContactListener
@@ -50,8 +52,7 @@ class GameInstance(private val cfg: SessionConfig) {
     private val refs = Refs()
     private val world: World
     private val factory: EntityFactory
-    private val playerRenderables: Family   // balls: stamp playerId from Player.slot
-    private val propRenderables: Family      // boulders etc: playerId = -1
+    private val renderables: Family   // players + props; Player presence tells them apart
     private val platforms: Family
     private var tickCount = 0L
 
@@ -89,8 +90,7 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(DeathSystem())
             }
         }
-        playerRenderables = world.family { all(Transform, RenderShape, Player) }
-        propRenderables = world.family { all(Transform, RenderShape).none(Player) }
+        renderables = world.family { all(Transform, RenderShape) }
         platforms = world.family { all(PlatformC) }
 
         factory = EntityFactory(world, physicsWorld, cfg.runConfig, refs)
@@ -121,7 +121,7 @@ class GameInstance(private val cfg: SessionConfig) {
 
     // Route input to the slot's relay; a not-yet-spawned slot is ignored.
     fun applyInput(cmd: InputCommand) {
-        relays[cmd.playerId]?.submit(cmd)
+        relays[cmd.slot]?.submit(cmd)
     }
 
     fun tick(deltaTime: Float) {
@@ -174,24 +174,23 @@ class GameInstance(private val cfg: SessionConfig) {
         val ents = ArrayList<EntitySnap>()
         val plats = ArrayList<PlatformSnap>()
         with(world) {
-            playerRenderables.forEach { e ->
+            renderables.forEach { e ->
                 val t = e[Transform]
                 val rs = e[RenderShape]
-                ents += EntitySnap(
-                    rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
-                    t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
-                    id = e.id,
-                    playerId = e[Player].slot,
-                )
-            }
-            propRenderables.forEach { e ->
-                val t = e[Transform]
-                val rs = e[RenderShape]
-                ents += EntitySnap(
-                    rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
-                    t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
-                    id = e.id,
-                )
+                val player = e.getOrNull(Player)
+                ents += if (player != null) {
+                    PlayerSnap(
+                        rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
+                        t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
+                        slot = player.slot,
+                    )
+                } else {
+                    PropSnap(
+                        rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
+                        t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
+                        id = e.id,
+                    )
+                }
             }
             platforms.forEach { e ->
                 val p = e[PlatformC]

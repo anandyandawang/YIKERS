@@ -9,6 +9,7 @@ import com.yikers.net.GameSession
 import com.yikers.net.NetworkGameSession
 import com.yikers.net.NetworkHost
 import com.yikers.net.Participant
+import com.yikers.net.PlayerSnap
 import com.yikers.net.RoomId
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
@@ -40,14 +41,14 @@ class NetworkClientTest {
         val client = Participant(session, HumanAgent(speed))
         try {
             awaitTick(session)
-            val startX = ballOf(session.snapshot(), session.playerId).x
+            val startX = ballOf(session.snapshot(), session.slot).x
 
             // ~3s of random mashing, pumping the client like the real render loop.
             var moved = false
             repeat(180) {
                 masher.reroll()
                 client.pump(1f / 60f)
-                val x = ballOf(session.snapshot(), session.playerId).x
+                val x = ballOf(session.snapshot(), session.slot).x
                 if (abs(x - startX) > MOVE_EPS) moved = true
                 Thread.sleep(16)
             }
@@ -65,7 +66,8 @@ class NetworkClientTest {
         }
     }
 
-    private fun ballOf(snap: WorldSnapshot, id: Int) = snap.entities.first { it.playerId == id }
+    private fun ballOf(snap: WorldSnapshot, id: Int) =
+        snap.entities.filterIsInstance<PlayerSnap>().first { it.slot == id }
 
     private fun awaitTick(session: GameSession, timeoutMs: Long = 5000) {
         val deadline = System.currentTimeMillis() + timeoutMs

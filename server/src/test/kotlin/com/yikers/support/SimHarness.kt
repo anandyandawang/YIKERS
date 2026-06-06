@@ -100,6 +100,7 @@ fun buildSim(
             y = GameConfig.GROUND_HEIGHT,
             controller = controller,
             group = (-(i + 1)).toShort(),
+            slot = i,
         )
     }
     refs.player = climbers.first()

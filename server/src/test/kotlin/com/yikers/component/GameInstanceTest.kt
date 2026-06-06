@@ -1,7 +1,7 @@
 package com.yikers.component
 
-import com.yikers.net.EntitySnap
 import com.yikers.net.InputCommand
+import com.yikers.net.PlayerSnap
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
 import com.yikers.sim.GameInstance
@@ -25,7 +25,7 @@ class GameInstanceTest {
             val x0 = playerBall(inst.snapshot()).x
 
             repeat(30) {
-                inst.applyInput(InputCommand(playerId = pid, vx = 4f, jump = false))
+                inst.applyInput(InputCommand(slot = pid, vx = 4f, jump = false))
                 inst.tick(dt)
             }
             val x1 = playerBall(inst.snapshot()).x
@@ -36,8 +36,8 @@ class GameInstanceTest {
         }
     }
 
-    private fun playerBall(snap: WorldSnapshot): EntitySnap =
-        snap.entities.first { it.playerId >= 0 }
+    private fun playerBall(snap: WorldSnapshot): PlayerSnap =
+        snap.entities.filterIsInstance<PlayerSnap>().first()
 
     companion object {
         private const val SEED = 42L
