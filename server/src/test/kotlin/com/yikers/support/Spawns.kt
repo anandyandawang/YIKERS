@@ -36,6 +36,6 @@ fun World.spawnTestClimber(pw: PhysicsWorld, x: Float, y: Float): Entity {
     }
     return entity {
         it += Physics(b)
-        it += Player()
+        it += Player(slot = 0)
     }
 }
