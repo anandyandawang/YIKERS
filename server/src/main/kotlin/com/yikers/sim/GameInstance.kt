@@ -16,6 +16,10 @@ import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.Player
 import com.yikers.ecs.component.RenderShape
 import com.yikers.ecs.component.Transform
+import com.yikers.ecs.component.augment.Augment
+import com.yikers.ecs.component.augment.AugmentCatalog
+import com.yikers.ecs.component.augment.AugmentOfferBook
+import com.yikers.ecs.component.augment.Augments
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.BoulderSystem
@@ -28,6 +32,8 @@ import com.yikers.ecs.system.PlatformSystem
 import com.yikers.ecs.system.ScrollSystem
 import com.yikers.ecs.system.TransformSyncSystem
 import com.yikers.ecs.system.WallFollowSystem
+import com.yikers.net.AugmentOfferSnap
+import com.yikers.net.AugmentSnap
 import com.yikers.net.EntitySnap
 import com.yikers.net.InputCommand
 import com.yikers.net.PlatformSnap
@@ -35,6 +41,7 @@ import com.yikers.net.PlayerSnap
 import com.yikers.net.PropSnap
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
+import com.yikers.net.wire.AugmentPick
 import com.yikers.physics.PlayContactListener
 import java.util.concurrent.ConcurrentLinkedQueue
 import ktx.box2d.createWorld
@@ -63,6 +70,9 @@ class GameInstance(private val cfg: SessionConfig) {
     private val relays = HashMap<Int, RelayController>()
     private val entitiesBySlot = HashMap<Int, Entity>()
     private val pendingOps = ConcurrentLinkedQueue<() -> Unit>()
+
+    // Augment offers at score milestones; while it has open offers the world freezes.
+    private val offerBook = AugmentOfferBook()
 
     val players: Int get() = synchronized(slotLock) { usedSlots.size }
 
@@ -125,9 +135,23 @@ class GameInstance(private val cfg: SessionConfig) {
     }
 
     fun tick(deltaTime: Float) {
-        drainOps()                 // spawn/despawn between steps -> Box2D-safe
+        drainOps()                  // spawn/despawn between steps -> Box2D-safe
+        if (offerBook.isPaused) return  // augment offer open: world frozen for everyone
         world.update(deltaTime)
         tickCount++
+        with(world) {
+            offerBook.maybeOpen(runState.score, runState.dead, entitiesBySlot.keys.toList()) { slot ->
+                entitiesBySlot.getValue(slot)[Augments].owned
+            }
+        }
+    }
+
+    // Resolve one player's offer. Called on the tick thread before tick().
+    fun applyAugmentPick(slot: Int, pick: AugmentPick) {
+        val entity = entitiesBySlot[slot] ?: run { offerBook.drop(slot); return }
+        with(world) {
+            offerBook.resolve(slot, pick.augmentId, pick.swapOutId, entity[Augments].owned)
+        }
     }
 
     private fun drainOps() {
@@ -168,6 +192,25 @@ class GameInstance(private val cfg: SessionConfig) {
         world -= e
         if (refs.player == e) refs.player = entitiesBySlot.values.firstOrNull()
         synchronized(slotLock) { usedSlots.remove(slot) }
+        offerBook.drop(slot)   // leaving mid-offer must not freeze the room forever
+    }
+
+    private fun augmentOffers(): List<AugmentOfferSnap> {
+        val slots = offerBook.activeSlots()
+        if (slots.isEmpty()) return emptyList()
+        fun Augment.toSnap() = AugmentSnap(id, displayName, desc)
+        return with(world) {
+            slots.mapNotNull { slot ->
+                val choices = offerBook.offerFor(slot) ?: return@mapNotNull null
+                val owned = entitiesBySlot[slot]?.let { it[Augments].owned }.orEmpty()
+                AugmentOfferSnap(
+                    slot = slot,
+                    choices = choices.map { it.toSnap() },
+                    owned = owned.map { it.toSnap() },
+                    maxOwned = AugmentCatalog.MAX_OWNED,
+                )
+            }
+        }
     }
 
     fun snapshot(): WorldSnapshot {
@@ -205,6 +248,7 @@ class GameInstance(private val cfg: SessionConfig) {
             dead = runState.dead,
             scrollY = runState.scrollY,
             highScore = runState.highScore,
+            augmentOffers = augmentOffers(),
         )
     }
 

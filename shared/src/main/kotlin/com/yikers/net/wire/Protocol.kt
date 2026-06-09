@@ -26,4 +26,9 @@ data class Snapshot(val world: WorldSnapshot) : Envelope
 @Serializable
 data class Rejected(val reason: String) : Envelope
 
+// Client resolves its augment offer. augmentId null = skip. swapOutId names the
+// owned augment to drop when already at the cap.
+@Serializable
+data class AugmentPick(val augmentId: String? = null, val swapOutId: String? = null) : Envelope
+
 const val PROTOCOL_VERSION = 1

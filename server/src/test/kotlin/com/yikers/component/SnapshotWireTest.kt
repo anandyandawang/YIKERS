@@ -1,12 +1,16 @@
 package com.yikers.component
 
+import com.yikers.net.AugmentOfferSnap
+import com.yikers.net.AugmentSnap
 import com.yikers.net.PlayerSnap
 import com.yikers.net.PropSnap
 import com.yikers.net.ShapeKind
 import com.yikers.net.WorldSnapshot
+import com.yikers.net.wire.AugmentPick
 import com.yikers.net.wire.Snapshot
 import com.yikers.net.wire.Wire
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 
 // Sealed EntitySnap must survive the CBOR wire: a PlayerSnap stays a PlayerSnap
@@ -36,5 +40,44 @@ class SnapshotWireTest {
         assertEquals(2f, p.x)
         assertEquals(42, o.id)
         assertEquals(5f, o.y)
+    }
+
+    @Test
+    fun augmentPickRoundTripsOverCbor() {
+        val pick = Wire.decode(Wire.encode(AugmentPick(augmentId = "double_jump", swapOutId = "old"))) as AugmentPick
+        assertEquals("double_jump", pick.augmentId)
+        assertEquals("old", pick.swapOutId)
+
+        val skip = Wire.decode(Wire.encode(AugmentPick())) as AugmentPick
+        assertNull(skip.augmentId) { "a skip carries no augment" }
+        assertNull(skip.swapOutId)
+    }
+
+    @Test
+    fun augmentOffersRideTheSnapshot() {
+        val offer = AugmentOfferSnap(
+            slot = 1,
+            choices = listOf(AugmentSnap("double_jump", "Double Jump", "jump again in mid-air")),
+            owned = emptyList(),
+            maxOwned = 5,
+        )
+        val world = WorldSnapshot(
+            tick = 1L,
+            entities = emptyList(),
+            platforms = emptyList(),
+            score = 50,
+            dead = false,
+            scrollY = 0f,
+            highScore = 0,
+            augmentOffers = listOf(offer),
+        )
+
+        val decoded = (Wire.decode(Wire.encode(Snapshot(world))) as Snapshot).world
+
+        assertEquals(1, decoded.augmentOffers.size)
+        val o = decoded.augmentOffers.single()
+        assertEquals(1, o.slot)
+        assertEquals("double_jump", o.choices.single().id)
+        assertEquals(5, o.maxOwned)
     }
 }

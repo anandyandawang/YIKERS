@@ -1,5 +1,6 @@
 package com.yikers.net
 
+import com.yikers.net.wire.AugmentPick
 import com.yikers.net.wire.Framing
 import com.yikers.net.wire.Input
 import com.yikers.net.wire.Snapshot
@@ -45,6 +46,17 @@ class NetworkGameSession(
         try {
             synchronized(writeLock) {
                 Framing.writeFrame(output, Wire.encode(Input(cmd.copy(slot = slot))))
+            }
+        } catch (_: IOException) {
+            alive = false
+        }
+    }
+
+    override fun submitAugmentPick(pick: AugmentPick) {
+        if (!alive) return
+        try {
+            synchronized(writeLock) {
+                Framing.writeFrame(output, Wire.encode(pick))
             }
         } catch (_: IOException) {
             alive = false

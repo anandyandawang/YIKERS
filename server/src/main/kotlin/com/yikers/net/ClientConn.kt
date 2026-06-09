@@ -1,5 +1,6 @@
 package com.yikers.net
 
+import com.yikers.net.wire.AugmentPick
 import com.yikers.net.wire.Envelope
 import com.yikers.net.wire.Input
 import com.yikers.net.wire.Framing
@@ -25,13 +26,21 @@ class ClientConn(
 
     private var reader: Thread? = null
 
-    fun start(onInput: (InputCommand) -> Unit, onClose: (ClientConn) -> Unit) {
+    fun start(
+        onInput: (InputCommand) -> Unit,
+        onPick: (Int, AugmentPick) -> Unit,
+        onClose: (ClientConn) -> Unit,
+    ) {
         reader = thread(name = "yikers-conn-$slot", isDaemon = true) {
             try {
                 while (alive) {
                     val bytes = Framing.readFrame(input) ?: break // clean EOF
                     val env = Wire.decode(bytes)
-                    if (env is Input) onInput(env.cmd.copy(slot = slot))
+                    when (env) {
+                        is Input -> onInput(env.cmd.copy(slot = slot))
+                        is AugmentPick -> onPick(slot, env)
+                        else -> {}
+                    }
                 }
             } catch (_: Exception) {
                 // peer gone -> disconnect

@@ -26,7 +26,7 @@ class BotRunner(
         repeat(count) {
             val session = NetworkHost(host, port).join(RoomId("bot")) as NetworkGameSession
             // Use the server's own run feel, handed over in the Welcome handshake.
-            participants.add(Participant(session, BotAgent(session.config.runConfig)))
+            participants.add(Participant(session, BotAgent(session.config.runConfig), autoSkipAugments = true))
         }
         running = true
         pumpThread = thread(name = "yikers-bot-pump", isDaemon = true) { runPumpLoop() }

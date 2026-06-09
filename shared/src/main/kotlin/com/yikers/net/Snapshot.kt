@@ -40,6 +40,19 @@ data class PropSnap(
 @Serializable
 data class PlatformSnap(val y: Float, val holeX: Float, val holeWidth: Float)
 
+@Serializable
+data class AugmentSnap(val id: String, val name: String, val desc: String)
+
+// One player's pending offer. slot identifies whose it is, so the single broadcast
+// snapshot serves every client; each reads only its own.
+@Serializable
+data class AugmentOfferSnap(
+    val slot: Int,
+    val choices: List<AugmentSnap>,
+    val owned: List<AugmentSnap>,
+    val maxOwned: Int,
+)
+
 // One frame for the client. Arena redrawn from GameConfig, so omitted.
 @Serializable
 data class WorldSnapshot(
@@ -50,4 +63,5 @@ data class WorldSnapshot(
     val dead: Boolean,
     val scrollY: Float,        // kill-line = camera bottom edge
     val highScore: Int,
+    val augmentOffers: List<AugmentOfferSnap> = emptyList(),  // empty = no offer pending
 )

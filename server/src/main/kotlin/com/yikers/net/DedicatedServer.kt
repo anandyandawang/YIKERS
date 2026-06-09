@@ -1,6 +1,7 @@
 package com.yikers.net
 
 import com.yikers.net.discovery.DiscoveryResponder
+import com.yikers.net.wire.AugmentPick
 import com.yikers.net.wire.Framing
 import com.yikers.net.wire.Join
 import com.yikers.net.wire.Rejected
@@ -40,6 +41,7 @@ class DedicatedServer(
 
     // Drained on the tick thread so all sim mutation stays single-threaded.
     private val inbound = ConcurrentLinkedQueue<InputCommand>()
+    private val picks = ConcurrentLinkedQueue<Pair<Int, AugmentPick>>()
 
     @Volatile
     private var running = false
@@ -107,6 +109,7 @@ class DedicatedServer(
             synchronized(conns) { conns.add(conn) }
             conn.start(
                 onInput = { inbound.add(it) },
+                onPick = { s, pick -> picks.add(s to pick) },
                 onClose = { c ->
                     synchronized(conns) { conns.remove(c) }
                     instance.removePlayer(c.slot)
@@ -125,6 +128,11 @@ class DedicatedServer(
             while (true) {
                 val cmd = inbound.poll() ?: break
                 instance.applyInput(cmd)
+            }
+            // Picks resolve even while paused -> they lift the pause.
+            while (true) {
+                val (slot, pick) = picks.poll() ?: break
+                instance.applyAugmentPick(slot, pick)
             }
             instance.tick(DT)
             val snap = instance.snapshot()
