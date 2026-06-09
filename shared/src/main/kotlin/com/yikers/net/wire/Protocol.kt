@@ -1,5 +1,6 @@
 package com.yikers.net.wire
 
+import com.yikers.net.AugmentSnap
 import com.yikers.net.InputCommand
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
@@ -26,9 +27,22 @@ data class Snapshot(val world: WorldSnapshot) : Envelope
 @Serializable
 data class Rejected(val reason: String) : Envelope
 
+// Augment acquisition is event-based, not snapshot state. Server -> one client when a
+// milestone opens that player's offer; the room is frozen until it resolves.
+@Serializable
+data class AugmentOffer(
+    val choices: List<AugmentSnap>,
+    val owned: List<AugmentSnap>,
+    val maxOwned: Int,
+) : Envelope
+
 // Client resolves its augment offer. augmentId null = skip. swapOutId names the
 // owned augment to drop when already at the cap.
 @Serializable
 data class AugmentPick(val augmentId: String? = null, val swapOutId: String? = null) : Envelope
+
+// Server -> all clients when the whole offer round is done and the world resumes.
+@Serializable
+data object ResumePlay : Envelope
 
 const val PROTOCOL_VERSION = 1

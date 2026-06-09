@@ -10,8 +10,7 @@ import com.badlogic.gdx.math.Rectangle
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.yikers.YikersGame
-import com.yikers.net.AugmentOfferSnap
-import com.yikers.net.WorldSnapshot
+import com.yikers.net.wire.AugmentOffer
 import com.yikers.net.wire.AugmentPick
 
 // Self-contained modal augment picker. Owns its own swap state + input. Choices mode:
@@ -25,21 +24,20 @@ class AugmentOfferOverlay(
     private val touch = Vector2()
     private var swapChoiceId: String? = null
 
-    // Draw + handle THIS client's offer. Returns true while any overlay is up (offer
-    // or "waiting for others"), so the screen suppresses its other input.
-    fun render(snap: WorldSnapshot, slot: Int, submit: (AugmentPick) -> Unit): Boolean {
-        val offer = snap.augmentOffers.firstOrNull { it.slot == slot }
+    // Draw + handle THIS client's offer event. Returns true while any overlay is up
+    // (offer, or "waiting for others" after we picked), so the screen suppresses input.
+    fun render(offer: AugmentOffer?, waiting: Boolean, submit: (AugmentPick) -> Unit): Boolean {
         if (offer == null) {
             swapChoiceId = null
-            if (snap.augmentOffers.isEmpty()) return false
-            drawWaiting()           // others still picking; room stays frozen
+            if (!waiting) return false
+            drawWaiting()           // we picked; room still frozen on others
             return true
         }
         drawOffer(offer, submit)
         return true
     }
 
-    private fun drawOffer(offer: AugmentOfferSnap, submit: (AugmentPick) -> Unit) {
+    private fun drawOffer(offer: AugmentOffer, submit: (AugmentPick) -> Unit) {
         viewport.apply()
         val w = viewport.worldWidth
         val h = viewport.worldHeight
@@ -106,7 +104,7 @@ class AugmentOfferOverlay(
     }
 
     private fun handleInput(
-        offer: AugmentOfferSnap,
+        offer: AugmentOffer,
         rects: List<Pair<Rectangle, String?>>,
         swapping: Boolean,
         submit: (AugmentPick) -> Unit,

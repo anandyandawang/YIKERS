@@ -52,7 +52,7 @@ class BotRunner(
     // No UI: take a random offered augment (swap a random owned one if full) so the
     // bot never stalls the room waiting on a pick.
     private fun resolveOffer(p: Participant) {
-        val offer = p.session.snapshot().augmentOffers.firstOrNull { it.slot == p.session.slot } ?: return
+        val offer = p.session.augmentOffer() ?: return
         if (offer.choices.isEmpty()) return
         val swapOut = if (offer.owned.size >= offer.maxOwned) offer.owned.random().id else null
         p.session.submitAugmentPick(AugmentPick(augmentId = offer.choices.random().id, swapOutId = swapOut))

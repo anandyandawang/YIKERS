@@ -1,12 +1,13 @@
 package com.yikers.component
 
-import com.yikers.net.AugmentOfferSnap
 import com.yikers.net.AugmentSnap
 import com.yikers.net.PlayerSnap
 import com.yikers.net.PropSnap
 import com.yikers.net.ShapeKind
 import com.yikers.net.WorldSnapshot
+import com.yikers.net.wire.AugmentOffer
 import com.yikers.net.wire.AugmentPick
+import com.yikers.net.wire.ResumePlay
 import com.yikers.net.wire.Snapshot
 import com.yikers.net.wire.Wire
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -54,30 +55,17 @@ class SnapshotWireTest {
     }
 
     @Test
-    fun augmentOffersRideTheSnapshot() {
-        val offer = AugmentOfferSnap(
-            slot = 1,
+    fun augmentOfferEventRoundTripsOverCbor() {
+        val env = AugmentOffer(
             choices = listOf(AugmentSnap("double_jump", "Double Jump", "jump again in mid-air")),
             owned = emptyList(),
             maxOwned = 5,
         )
-        val world = WorldSnapshot(
-            tick = 1L,
-            entities = emptyList(),
-            platforms = emptyList(),
-            score = 50,
-            dead = false,
-            scrollY = 0f,
-            highScore = 0,
-            augmentOffers = listOf(offer),
-        )
+        val decoded = Wire.decode(Wire.encode(env)) as AugmentOffer
+        assertEquals("double_jump", decoded.choices.single().id)
+        assertEquals(5, decoded.maxOwned)
 
-        val decoded = (Wire.decode(Wire.encode(Snapshot(world))) as Snapshot).world
-
-        assertEquals(1, decoded.augmentOffers.size)
-        val o = decoded.augmentOffers.single()
-        assertEquals(1, o.slot)
-        assertEquals("double_jump", o.choices.single().id)
-        assertEquals(5, o.maxOwned)
+        // ResumePlay is a marker object; it must survive the sealed round-trip too.
+        assert(Wire.decode(Wire.encode(ResumePlay)) is ResumePlay)
     }
 }

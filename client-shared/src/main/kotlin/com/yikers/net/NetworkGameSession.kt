@@ -1,8 +1,10 @@
 package com.yikers.net
 
+import com.yikers.net.wire.AugmentOffer
 import com.yikers.net.wire.AugmentPick
 import com.yikers.net.wire.Framing
 import com.yikers.net.wire.Input
+import com.yikers.net.wire.ResumePlay
 import com.yikers.net.wire.Snapshot
 import com.yikers.net.wire.Wire
 import java.io.DataInputStream
@@ -22,17 +24,26 @@ class NetworkGameSession(
     val config: SessionConfig,
 ) : GameSession {
     private val latest = AtomicReference(EMPTY)
+    private val offer = AtomicReference<AugmentOffer?>(null)
     private val writeLock = Any()
 
     @Volatile
     private var alive = true
 
+    // True after we pick but before the room resumes: shows "waiting for others".
+    @Volatile
+    private var waiting = false
+
     private val reader = thread(name = "yikers-net-reader", isDaemon = true) {
         try {
             while (alive) {
                 val bytes = Framing.readFrame(input) ?: break
-                val env = Wire.decode(bytes)
-                if (env is Snapshot) latest.set(env.world)
+                when (val env = Wire.decode(bytes)) {
+                    is Snapshot -> latest.set(env.world)
+                    is AugmentOffer -> { offer.set(env); waiting = false }
+                    is ResumePlay -> { offer.set(null); waiting = false }
+                    else -> {}
+                }
             }
         } catch (_: Exception) {
             // server gone -> stop updating; last snapshot stays put
@@ -58,12 +69,18 @@ class NetworkGameSession(
             synchronized(writeLock) {
                 Framing.writeFrame(output, Wire.encode(pick))
             }
+            offer.set(null)   // picked: drop the overlay, wait for the room to resume
+            waiting = true
         } catch (_: IOException) {
             alive = false
         }
     }
 
     override fun snapshot(): WorldSnapshot = latest.get()
+
+    override fun augmentOffer(): AugmentOffer? = offer.get()
+
+    override fun awaitingAugmentResume(): Boolean = waiting
 
     override fun close() {
         alive = false

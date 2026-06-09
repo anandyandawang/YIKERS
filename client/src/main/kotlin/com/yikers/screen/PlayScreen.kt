@@ -82,9 +82,10 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         renderer.render(snap, viewport.worldHeight)
         hud.render(snap)
 
-        val overlayUp = augmentOverlay.render(snap, human.session.slot) {
-            human.session.submitAugmentPick(it)
-        }
+        val overlayUp = augmentOverlay.render(
+            human.session.augmentOffer(),
+            human.session.awaitingAugmentResume(),
+        ) { human.session.submitAugmentPick(it) }
         if (!overlayUp && snap.dead) handleGameOver(snap)
     }
 

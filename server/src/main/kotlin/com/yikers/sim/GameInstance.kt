@@ -32,7 +32,6 @@ import com.yikers.ecs.system.PlatformSystem
 import com.yikers.ecs.system.ScrollSystem
 import com.yikers.ecs.system.TransformSyncSystem
 import com.yikers.ecs.system.WallFollowSystem
-import com.yikers.net.AugmentOfferSnap
 import com.yikers.net.AugmentSnap
 import com.yikers.net.EntitySnap
 import com.yikers.net.InputCommand
@@ -41,7 +40,10 @@ import com.yikers.net.PlayerSnap
 import com.yikers.net.PropSnap
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
+import com.yikers.net.wire.AugmentOffer
 import com.yikers.net.wire.AugmentPick
+import com.yikers.net.wire.Envelope
+import com.yikers.net.wire.ResumePlay
 import com.yikers.physics.PlayContactListener
 import java.util.concurrent.ConcurrentLinkedQueue
 import ktx.box2d.createWorld
@@ -73,6 +75,10 @@ class GameInstance(private val cfg: SessionConfig) {
 
     // Augment offers at score milestones; while it has open offers the world freezes.
     private val offerBook = AugmentOfferBook()
+
+    // Augment events to push out: slot == null means broadcast to all. Drained by the
+    // server after each tick. (slot-targeted = that player's offer; broadcast = resume.)
+    private val augmentEvents = ConcurrentLinkedQueue<Pair<Int?, Envelope>>()
 
     val players: Int get() = synchronized(slotLock) { usedSlots.size }
 
@@ -139,19 +145,39 @@ class GameInstance(private val cfg: SessionConfig) {
         if (offerBook.isPaused) return  // augment offer open: world frozen for everyone
         world.update(deltaTime)
         tickCount++
-        with(world) {
+        val opened = with(world) {
             offerBook.maybeOpen(runState.score, runState.dead, entitiesBySlot.keys.toList()) { slot ->
                 entitiesBySlot.getValue(slot)[Augments].owned
             }
         }
+        opened.forEach { slot -> augmentEvents.add(slot to offerEvent(slot)) }
     }
 
     // Resolve one player's offer. Called on the tick thread before tick().
     fun applyAugmentPick(slot: Int, pick: AugmentPick) {
-        val entity = entitiesBySlot[slot] ?: run { offerBook.drop(slot); return }
-        with(world) {
+        val entity = entitiesBySlot[slot] ?: run {
+            if (offerBook.drop(slot)) augmentEvents.add(null to ResumePlay)
+            return
+        }
+        val ended = with(world) {
             offerBook.resolve(slot, pick.augmentId, pick.swapOutId, entity[Augments].owned)
         }
+        if (ended) augmentEvents.add(null to ResumePlay)
+    }
+
+    // Drain pending augment events: slot null = broadcast. Server-thread.
+    fun drainAugmentEvents(send: (slot: Int?, env: Envelope) -> Unit) {
+        while (true) {
+            val (slot, env) = augmentEvents.poll() ?: break
+            send(slot, env)
+        }
+    }
+
+    private fun offerEvent(slot: Int): AugmentOffer {
+        fun Augment.toSnap() = AugmentSnap(id, displayName, desc)
+        val choices = offerBook.offerFor(slot).orEmpty().map { it.toSnap() }
+        val owned = with(world) { entitiesBySlot[slot]?.let { it[Augments].owned }.orEmpty() }.map { it.toSnap() }
+        return AugmentOffer(choices, owned, AugmentCatalog.MAX_OWNED)
     }
 
     private fun drainOps() {
@@ -192,25 +218,8 @@ class GameInstance(private val cfg: SessionConfig) {
         world -= e
         if (refs.player == e) refs.player = entitiesBySlot.values.firstOrNull()
         synchronized(slotLock) { usedSlots.remove(slot) }
-        offerBook.drop(slot)   // leaving mid-offer must not freeze the room forever
-    }
-
-    private fun augmentOffers(): List<AugmentOfferSnap> {
-        val slots = offerBook.activeSlots()
-        if (slots.isEmpty()) return emptyList()
-        fun Augment.toSnap() = AugmentSnap(id, displayName, desc)
-        return with(world) {
-            slots.mapNotNull { slot ->
-                val choices = offerBook.offerFor(slot) ?: return@mapNotNull null
-                val owned = entitiesBySlot[slot]?.let { it[Augments].owned }.orEmpty()
-                AugmentOfferSnap(
-                    slot = slot,
-                    choices = choices.map { it.toSnap() },
-                    owned = owned.map { it.toSnap() },
-                    maxOwned = AugmentCatalog.MAX_OWNED,
-                )
-            }
-        }
+        // leaving mid-offer must not freeze the room forever
+        if (offerBook.drop(slot)) augmentEvents.add(null to ResumePlay)
     }
 
     fun snapshot(): WorldSnapshot {
@@ -248,7 +257,6 @@ class GameInstance(private val cfg: SessionConfig) {
             dead = runState.dead,
             scrollY = runState.scrollY,
             highScore = runState.highScore,
-            augmentOffers = augmentOffers(),
         )
     }
 

@@ -140,6 +140,12 @@ class DedicatedServer(
             val targets = synchronized(conns) { conns.toList() }
             targets.forEach { it.send(Snapshot(snap)) }
 
+            // Augment offer events: slot-targeted to one player, null = broadcast.
+            instance.drainAugmentEvents { slot, env ->
+                if (slot == null) targets.forEach { it.send(env) }
+                else targets.firstOrNull { it.slot == slot }?.send(env)
+            }
+
             next += stepNanos
             val sleep = next - System.nanoTime()
             if (sleep > 0) LockSupport.parkNanos(sleep) else next = System.nanoTime()
