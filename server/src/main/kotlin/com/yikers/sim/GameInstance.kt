@@ -2,7 +2,6 @@ package com.yikers.sim
 
 import com.badlogic.gdx.math.MathUtils
 import com.github.quillraven.fleks.Entity
-import com.github.quillraven.fleks.Family
 import com.github.quillraven.fleks.World
 import com.github.quillraven.fleks.configureWorld
 import com.yikers.config.GameConfig
@@ -11,11 +10,7 @@ import com.yikers.control.RelayController
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.buildArena
 import com.yikers.ecs.component.FootSensor
-import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.component.Physics
-import com.yikers.ecs.component.Player
-import com.yikers.ecs.component.RenderShape
-import com.yikers.ecs.component.Transform
 import com.yikers.ecs.event.Events
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
@@ -34,11 +29,7 @@ import com.yikers.ecs.system.TransformSyncSystem
 import com.yikers.ecs.system.WallFollowSystem
 import com.yikers.level.ClassicGenerator
 import com.yikers.level.LevelGenerator
-import com.yikers.net.EntitySnap
 import com.yikers.net.InputCommand
-import com.yikers.net.PlatformSnap
-import com.yikers.net.PlayerSnap
-import com.yikers.net.PropSnap
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
 import com.yikers.physics.PlayContactListener
@@ -60,8 +51,7 @@ class GameInstance(private val cfg: SessionConfig) {
     private val generator: LevelGenerator = ClassicGenerator(cfg.runConfig)
     private val world: World
     private val factory: EntityFactory
-    private val renderables: Family   // players + props; Player presence tells them apart
-    private val platforms: Family
+    private val snapshots: SnapshotBuilder
     private var tickCount = 0L
 
     // Slots reserved off the tick thread (accept thread needs one for the handshake);
@@ -103,8 +93,7 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(EventFlushSystem())
             }
         }
-        renderables = world.family { all(Transform, RenderShape) }
-        platforms = world.family { all(PlatformC) }
+        snapshots = SnapshotBuilder(world, runState)
 
         factory = EntityFactory(world, physicsWorld, refs)
         for (i in 1..GameConfig.NUM_PLATFORMS) {
@@ -184,43 +173,7 @@ class GameInstance(private val cfg: SessionConfig) {
         synchronized(slotLock) { usedSlots.remove(slot) }
     }
 
-    fun snapshot(): WorldSnapshot {
-        val ents = ArrayList<EntitySnap>()
-        val plats = ArrayList<PlatformSnap>()
-        with(world) {
-            renderables.forEach { e ->
-                val t = e[Transform]
-                val rs = e[RenderShape]
-                val player = e.getOrNull(Player)
-                ents += if (player != null) {
-                    PlayerSnap(
-                        rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
-                        t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
-                        slot = player.slot,
-                    )
-                } else {
-                    PropSnap(
-                        rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
-                        t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
-                        id = e.id,
-                    )
-                }
-            }
-            platforms.forEach { e ->
-                val p = e[PlatformC]
-                plats += PlatformSnap(p.y, p.holeX, p.holeWidth)
-            }
-        }
-        return WorldSnapshot(
-            tick = tickCount,
-            entities = ents,
-            platforms = plats,
-            score = runState.score,
-            dead = runState.dead,
-            scrollY = runState.scrollY,
-            highScore = runState.highScore,
-        )
-    }
+    fun snapshot(): WorldSnapshot = snapshots.build(tickCount)
 
     fun close() {
         world.dispose()
