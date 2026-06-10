@@ -3,8 +3,8 @@ package com.yikers.lwjgl3
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration
 import com.yikers.YikersGame
+import com.yikers.config.BootConfig
 import com.yikers.config.GameConfig
-import com.yikers.control.BootConfig
 
 object Lwjgl3Launcher {
     @JvmStatic

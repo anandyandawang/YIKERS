@@ -3,7 +3,7 @@ package com.yikers.ios
 import com.badlogic.gdx.backends.iosrobovm.IOSApplication
 import com.badlogic.gdx.backends.iosrobovm.IOSApplicationConfiguration
 import com.yikers.YikersGame
-import com.yikers.control.BootConfig
+import com.yikers.config.BootConfig
 import org.robovm.apple.foundation.NSAutoreleasePool
 import org.robovm.apple.uikit.UIApplication
 

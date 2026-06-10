@@ -50,4 +50,17 @@ data class WorldSnapshot(
     val dead: Boolean,
     val scrollY: Float,        // kill-line = camera bottom edge
     val highScore: Int,
-)
+) {
+    companion object {
+        // The zero frame: what a session shows before its first server snapshot.
+        val EMPTY = WorldSnapshot(
+            tick = 0L,
+            entities = emptyList(),
+            platforms = emptyList(),
+            score = 0,
+            dead = false,
+            scrollY = 0f,
+            highScore = 0,
+        )
+    }
+}

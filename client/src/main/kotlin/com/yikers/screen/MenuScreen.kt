@@ -10,9 +10,9 @@ import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.yikers.YikersGame
+import com.yikers.config.BootConfig
 import com.yikers.config.GameConfig
 import com.yikers.config.Prefs
-import com.yikers.control.BootConfig
 import com.yikers.net.DedicatedServer
 import com.yikers.net.Session
 import com.yikers.net.SessionConfig

@@ -7,10 +7,8 @@ import com.yikers.control.HumanAgent
 import com.yikers.net.DedicatedServer
 import com.yikers.net.GameSession
 import com.yikers.net.NetworkGameSession
-import com.yikers.net.NetworkHost
 import com.yikers.net.Participant
 import com.yikers.net.PlayerSnap
-import com.yikers.net.RoomId
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
 import com.yikers.support.HeadlessGdx
@@ -35,10 +33,8 @@ class NetworkClientTest {
         val masher = RandomKeyboard(Random(SEED))
         Gdx.input = masher
 
-        val session = NetworkHost("127.0.0.1", server.port).join(RoomId("net"))
-        val speed = (session as? NetworkGameSession)?.config?.runConfig?.horizontalSpeed
-            ?: SessionConfig().runConfig.horizontalSpeed
-        val client = Participant(session, HumanAgent(speed))
+        val session = NetworkGameSession.connect("127.0.0.1", server.port)
+        val client = Participant(session, HumanAgent(session.config.runConfig.horizontalSpeed))
         try {
             awaitTick(session)
             val startX = ballOf(session.snapshot(), session.slot).x

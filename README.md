@@ -74,7 +74,7 @@ local SDK required.
 - `server/` — authoritative sim: Fleks ECS + Box2D + 60Hz `DedicatedServer`.
 - `shared/` — wire types + configs, engine-free.
 - `client/` — libGDX screens + `SnapshotRenderer` (draws snapshots, owns no sim).
-- `client-shared/` — session abstractions (`GameSession`, `GameHost`, `InputAgent`).
+- `client-shared/` — session abstractions (`GameSession`, `InputAgent`).
 - `bot/` — autopilot agent, sees only `WorldSnapshot`.
 - `e2e/`, `arch/` — socket tests, architecture rules.
 - `lwjgl3/`, `ios/`, `android/` — launchers.

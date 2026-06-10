@@ -23,7 +23,7 @@ dependencies {
     // ktx = idiomatic Kotlin libGDX helpers (Box2D + math only; no graphics).
     implementation(libs.ktx.box2d)
     implementation(libs.ktx.math)
-    // CBOR runtime for DedicatedServer / NetworkHost wire I/O.
+    // CBOR runtime for DedicatedServer / ClientConn wire I/O.
     implementation(libs.kotlinx.serialization.cbor)
     // Headless backend + desktop natives are now MAIN runtime deps (not just test)
     // so `:server:run` can boot a HeadlessApplication and load the Box2D native —
