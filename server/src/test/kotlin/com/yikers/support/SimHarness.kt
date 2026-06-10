@@ -23,6 +23,7 @@ import com.yikers.ecs.system.PlatformSystem
 import com.yikers.ecs.system.ScrollSystem
 import com.yikers.ecs.system.TransformSyncSystem
 import com.yikers.ecs.system.WallFollowSystem
+import com.yikers.level.ClassicGenerator
 import com.yikers.physics.PlayContactListener
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
@@ -63,6 +64,7 @@ fun buildSim(
     val runState = RunState().apply { highScore = Int.MAX_VALUE }
     val refs = Refs()
     val events = Events()
+    val generator = ClassicGenerator(cfg)
 
     val pw = physicsWorld(cfg.gravityScale)
     val arena = buildArena(pw)
@@ -93,7 +95,7 @@ fun buildSim(
         }
     }
 
-    val factory = EntityFactory(world, pw, cfg, refs)
+    val factory = EntityFactory(world, pw, refs)
     val r = GameConfig.BALL_RADIUS
     val minCx = GameConfig.WALL_THICKNESS + r
     val maxCx = GameConfig.WIDTH - GameConfig.WALL_THICKNESS - r
@@ -115,7 +117,8 @@ fun buildSim(
 
     if (spawnPlatforms) {
         for (i in 1..GameConfig.NUM_PLATFORMS) {
-            factory.spawnPlatform(GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS)
+            val y = GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS
+            factory.spawnPlatform(y, generator.nextPlatform(y))
         }
     }
     if (spawnBoulders) {

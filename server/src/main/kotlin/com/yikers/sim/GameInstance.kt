@@ -30,6 +30,8 @@ import com.yikers.ecs.system.PlatformSystem
 import com.yikers.ecs.system.ScrollSystem
 import com.yikers.ecs.system.TransformSyncSystem
 import com.yikers.ecs.system.WallFollowSystem
+import com.yikers.level.ClassicGenerator
+import com.yikers.level.LevelGenerator
 import com.yikers.net.EntitySnap
 import com.yikers.net.InputCommand
 import com.yikers.net.PlatformSnap
@@ -53,6 +55,7 @@ class GameInstance(private val cfg: SessionConfig) {
         createWorld(gravity = vec2(0f, GameConfig.GRAVITY * cfg.runConfig.gravityScale))
     private val refs = Refs()
     private val events = Events()
+    private val generator: LevelGenerator = ClassicGenerator(cfg.runConfig)
     private val world: World
     private val factory: EntityFactory
     private val renderables: Family   // players + props; Player presence tells them apart
@@ -98,9 +101,10 @@ class GameInstance(private val cfg: SessionConfig) {
         renderables = world.family { all(Transform, RenderShape) }
         platforms = world.family { all(PlatformC) }
 
-        factory = EntityFactory(world, physicsWorld, cfg.runConfig, refs)
+        factory = EntityFactory(world, physicsWorld, refs)
         for (i in 1..GameConfig.NUM_PLATFORMS) {
-            factory.spawnPlatform(GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS)
+            val y = GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS
+            factory.spawnPlatform(y, generator.nextPlatform(y))
         }
         for (i in 1..GameConfig.NUM_PLATFORMS) {
             factory.spawnBoulder(GameConfig.WIDTH / 2f - GameConfig.BOULDER_RADIUS, -3.0f - i * 0.6f)

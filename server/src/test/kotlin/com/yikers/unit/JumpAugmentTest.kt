@@ -37,7 +37,7 @@ class JumpAugmentTest {
             systems { add(JumpSystem()) }
         }
         TestWorld(pw, world, runState, refs, cfg).use { tw ->
-            val factory = EntityFactory(world, pw, cfg, refs)
+            val factory = EntityFactory(world, pw, refs)
             val player = factory.spawnPlayer(x = GameConfig.WIDTH / 2f, y = 1f, controller = RelayController(0), slot = 0)
             refs.player = player
 

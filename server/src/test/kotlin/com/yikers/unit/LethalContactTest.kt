@@ -55,7 +55,7 @@ class LethalContactTest {
             val hazard = world.entity { it += Lethal() }
             hazardBody.userData = hazard
 
-            val factory = EntityFactory(world, pw, cfg, refs)
+            val factory = EntityFactory(world, pw, refs)
             val player = factory.spawnPlayer(
                 x = GameConfig.WIDTH / 2f - GameConfig.BALL_RADIUS,
                 y = 2f,
