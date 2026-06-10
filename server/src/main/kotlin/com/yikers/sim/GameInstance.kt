@@ -2,7 +2,6 @@ package com.yikers.sim
 
 import com.badlogic.gdx.math.MathUtils
 import com.github.quillraven.fleks.Entity
-import com.github.quillraven.fleks.Family
 import com.github.quillraven.fleks.World
 import com.github.quillraven.fleks.configureWorld
 import com.yikers.config.GameConfig
@@ -11,28 +10,26 @@ import com.yikers.control.RelayController
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.buildArena
 import com.yikers.ecs.component.FootSensor
-import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.component.Physics
-import com.yikers.ecs.component.Player
-import com.yikers.ecs.component.RenderShape
-import com.yikers.ecs.component.Transform
+import com.yikers.ecs.event.Events
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.BoulderSystem
 import com.yikers.ecs.system.ControlSystem
 import com.yikers.ecs.system.DeathSystem
+import com.yikers.ecs.system.EventFlushSystem
 import com.yikers.ecs.system.JumpSystem
 import com.yikers.ecs.system.MoveSystem
 import com.yikers.ecs.system.PhysicsStepSystem
-import com.yikers.ecs.system.PlatformSystem
+import com.yikers.ecs.system.PlatformBridgeSystem
+import com.yikers.ecs.system.PlatformRecycleSystem
+import com.yikers.ecs.system.PlatformScoreSystem
 import com.yikers.ecs.system.ScrollSystem
 import com.yikers.ecs.system.TransformSyncSystem
 import com.yikers.ecs.system.WallFollowSystem
-import com.yikers.net.EntitySnap
+import com.yikers.level.ClassicGenerator
+import com.yikers.level.LevelGenerator
 import com.yikers.net.InputCommand
-import com.yikers.net.PlatformSnap
-import com.yikers.net.PlayerSnap
-import com.yikers.net.PropSnap
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
 import com.yikers.physics.PlayContactListener
@@ -50,10 +47,11 @@ class GameInstance(private val cfg: SessionConfig) {
     private val physicsWorld: PhysicsWorld =
         createWorld(gravity = vec2(0f, GameConfig.GRAVITY * cfg.runConfig.gravityScale))
     private val refs = Refs()
+    private val events = Events()
+    private val generator: LevelGenerator = ClassicGenerator(cfg.runConfig)
     private val world: World
     private val factory: EntityFactory
-    private val renderables: Family   // players + props; Player presence tells them apart
-    private val platforms: Family
+    private val snapshots: SnapshotBuilder
     private var tickCount = 0L
 
     // Slots reserved off the tick thread (accept thread needs one for the handshake);
@@ -76,6 +74,8 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(runState)
                 add(arena)
                 add(refs)
+                add(events)
+                add<LevelGenerator>(generator)
             }
             systems {
                 add(ControlSystem())
@@ -85,22 +85,25 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(PhysicsStepSystem())
                 add(TransformSyncSystem())
                 add(BoulderSystem())
-                add(PlatformSystem())
+                add(PlatformScoreSystem())
+                add(PlatformBridgeSystem())
+                add(PlatformRecycleSystem())
                 add(ScrollSystem())
                 add(DeathSystem())
+                add(EventFlushSystem())
             }
         }
-        renderables = world.family { all(Transform, RenderShape) }
-        platforms = world.family { all(PlatformC) }
+        snapshots = SnapshotBuilder(world, runState)
 
-        factory = EntityFactory(world, physicsWorld, cfg.runConfig, refs)
+        factory = EntityFactory(world, physicsWorld, refs)
         for (i in 1..GameConfig.NUM_PLATFORMS) {
-            factory.spawnPlatform(GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS)
+            val y = GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS
+            factory.spawnPlatform(y, generator.nextPlatform(y))
         }
         for (i in 1..GameConfig.NUM_PLATFORMS) {
             factory.spawnBoulder(GameConfig.WIDTH / 2f - GameConfig.BOULDER_RADIUS, -3.0f - i * 0.6f)
         }
-        physicsWorld.setContactListener(PlayContactListener(world))
+        physicsWorld.setContactListener(PlayContactListener(world, events))
     }
 
     // Reserve the lowest free slot; ball spawns next tick. Any-thread safe.
@@ -170,43 +173,7 @@ class GameInstance(private val cfg: SessionConfig) {
         synchronized(slotLock) { usedSlots.remove(slot) }
     }
 
-    fun snapshot(): WorldSnapshot {
-        val ents = ArrayList<EntitySnap>()
-        val plats = ArrayList<PlatformSnap>()
-        with(world) {
-            renderables.forEach { e ->
-                val t = e[Transform]
-                val rs = e[RenderShape]
-                val player = e.getOrNull(Player)
-                ents += if (player != null) {
-                    PlayerSnap(
-                        rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
-                        t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
-                        slot = player.slot,
-                    )
-                } else {
-                    PropSnap(
-                        rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
-                        t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
-                        id = e.id,
-                    )
-                }
-            }
-            platforms.forEach { e ->
-                val p = e[PlatformC]
-                plats += PlatformSnap(p.y, p.holeX, p.holeWidth)
-            }
-        }
-        return WorldSnapshot(
-            tick = tickCount,
-            entities = ents,
-            platforms = plats,
-            score = runState.score,
-            dead = runState.dead,
-            scrollY = runState.scrollY,
-            highScore = runState.highScore,
-        )
-    }
+    fun snapshot(): WorldSnapshot = snapshots.build(tickCount)
 
     fun close() {
         world.dispose()

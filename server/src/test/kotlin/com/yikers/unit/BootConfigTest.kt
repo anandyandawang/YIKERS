@@ -8,6 +8,7 @@ import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
+import com.yikers.level.ClassicGenerator
 import com.yikers.support.HeadlessGdx
 import com.yikers.support.TestWorld
 import com.yikers.support.physicsWorld
@@ -42,10 +43,12 @@ class BootConfigTest {
         val refs = Refs()
         val world = configureWorld { }
         return TestWorld(pw, world, RunState(), refs, cfg).use { _ ->
-            val factory = EntityFactory(world, pw, cfg, refs)
+            val factory = EntityFactory(world, pw, refs)
+            val gen = ClassicGenerator(cfg)
             with(world) {
                 (1..GameConfig.NUM_PLATFORMS).map { i ->
-                    val e = factory.spawnPlatform(GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS)
+                    val y = GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS
+                    val e = factory.spawnPlatform(y, gen.nextPlatform(y))
                     e[PlatformC].holeX
                 }
             }

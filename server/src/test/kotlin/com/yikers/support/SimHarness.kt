@@ -10,17 +10,23 @@ import com.yikers.control.Controller
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.buildArena
 import com.yikers.ecs.component.Physics
+import com.yikers.ecs.event.Events
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.BoulderSystem
 import com.yikers.ecs.system.DeathSystem
+import com.yikers.ecs.system.EventFlushSystem
 import com.yikers.ecs.system.JumpSystem
 import com.yikers.ecs.system.MoveSystem
 import com.yikers.ecs.system.PhysicsStepSystem
-import com.yikers.ecs.system.PlatformSystem
+import com.yikers.ecs.system.PlatformBridgeSystem
+import com.yikers.ecs.system.PlatformRecycleSystem
+import com.yikers.ecs.system.PlatformScoreSystem
 import com.yikers.ecs.system.ScrollSystem
 import com.yikers.ecs.system.TransformSyncSystem
 import com.yikers.ecs.system.WallFollowSystem
+import com.yikers.level.ClassicGenerator
+import com.yikers.level.LevelGenerator
 import com.yikers.physics.PlayContactListener
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
@@ -32,6 +38,7 @@ class SimHarness(
     val runState: RunState,
     val refs: Refs,
     val cfg: RunConfig,
+    val events: Events,
     val player: Entity,
     val climbers: List<Entity>,
 ) : AutoCloseable {
@@ -59,6 +66,8 @@ fun buildSim(
     // Huge highScore => DeathSystem never writes Prefs (Gdx.app file) at run-end.
     val runState = RunState().apply { highScore = Int.MAX_VALUE }
     val refs = Refs()
+    val events = Events()
+    val generator = ClassicGenerator(cfg)
 
     val pw = physicsWorld(cfg.gravityScale)
     val arena = buildArena(pw)
@@ -70,6 +79,8 @@ fun buildSim(
             add(runState)
             add(arena)
             add(refs)
+            add(events)
+            add<LevelGenerator>(generator)
         }
         // 10-system PlayScreen order minus RenderSystem (Gdx.gl is null headless).
         systems {
@@ -81,13 +92,16 @@ fun buildSim(
             add(PhysicsStepSystem())
             add(TransformSyncSystem())
             add(BoulderSystem())
-            add(PlatformSystem())
+            add(PlatformScoreSystem())
+            add(PlatformBridgeSystem())
+            add(PlatformRecycleSystem())
             add(ScrollSystem())
             add(DeathSystem())
+            add(EventFlushSystem())
         }
     }
 
-    val factory = EntityFactory(world, pw, cfg, refs)
+    val factory = EntityFactory(world, pw, refs)
     val r = GameConfig.BALL_RADIUS
     val minCx = GameConfig.WALL_THICKNESS + r
     val maxCx = GameConfig.WIDTH - GameConfig.WALL_THICKNESS - r
@@ -109,7 +123,8 @@ fun buildSim(
 
     if (spawnPlatforms) {
         for (i in 1..GameConfig.NUM_PLATFORMS) {
-            factory.spawnPlatform(GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS)
+            val y = GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS
+            factory.spawnPlatform(y, generator.nextPlatform(y))
         }
     }
     if (spawnBoulders) {
@@ -118,6 +133,6 @@ fun buildSim(
         }
     }
 
-    pw.setContactListener(PlayContactListener(world))
-    return SimHarness(pw, world, runState, refs, cfg, climbers.first(), climbers)
+    pw.setContactListener(PlayContactListener(world, events))
+    return SimHarness(pw, world, runState, refs, cfg, events, climbers.first(), climbers)
 }

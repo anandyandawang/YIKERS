@@ -71,29 +71,28 @@ local SDK required.
 
 ## Layout
 
-- `core/` — game logic, no backend.
-  - `screen/` — `MenuScreen`, `PlayScreen` (run lifecycle: builds the worlds).
-  - `ecs/component`, `ecs/system`, `ecs/resource` — the Fleks ECS.
-  - `ecs/EntityFactory.kt` — Box2D body + entity wiring.
-  - `physics/` — Box2D contact listener.
-  - `config/` — `GameConfig` (fixed consts), `RunConfig` (per-run knobs),
-    `Prefs` (save keys).
-- `lwjgl3/` — desktop launcher + natives.
+- `server/` — authoritative sim: Fleks ECS + Box2D + 60Hz `DedicatedServer`.
+- `shared/` — wire types + configs, engine-free.
+- `client/` — libGDX screens + `SnapshotRenderer` (draws snapshots, owns no sim).
+- `client-shared/` — session abstractions (`GameSession`, `GameHost`, `InputAgent`).
+- `bot/` — autopilot agent, sees only `WorldSnapshot`.
+- `e2e/`, `arch/` — socket tests, architecture rules.
+- `lwjgl3/`, `ios/`, `android/` — launchers.
 
 ## Architecture
 
-- ktx `KtxGame` / `KtxScreen` for app flow (menu vs play).
-- Inside `PlayScreen`: one Fleks `World` runs the sim each frame; one Box2D
-  `World` does physics. A `Physics` component links each entity to its body;
-  systems step physics, sync transforms, score, scroll, and render shapes.
-- Asset-free: entities drawn as shapes (ShapeRenderer) + built-in font. No
-  binary assets.
+Full map + system order + how-to-extend recipes: see
+[ARCHITECTURE.md](ARCHITECTURE.md).
 
 ### Roguelike seams (built, not yet filled)
 
 - `RunConfig` — mutable per-run knobs every system reads; items / events /
   characters tweak it live.
+- `Events` — per-tick event queue (`PlatformCleared`, `PlayerDied`, ...);
+  reward / pickup / on-death logic hooks here.
+- `LevelGenerator` — all layout randomness; new biome = new implementation.
 - `Lethal` marker — anything lethal kills the player; new enemies just add it.
+- Augment traits — `DoubleJump` pattern; systems honor traits, never names.
 - `Prefs` — reserved keys for unlocked characters + checkpoints.
 
 Planned: procedural floors/biomes, per-run item builds, events that inject

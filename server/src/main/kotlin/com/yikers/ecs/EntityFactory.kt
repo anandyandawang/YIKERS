@@ -1,21 +1,18 @@
 package com.yikers.ecs
 
 import com.badlogic.gdx.graphics.Color
-import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.physics.box2d.Body
 import com.badlogic.gdx.physics.box2d.BodyDef
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
 import com.yikers.config.GameConfig
-import com.yikers.config.RunConfig
 import com.yikers.control.Controller
 import com.yikers.ecs.component.BoulderC
 import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.Intent
 import com.yikers.ecs.component.JumpState
-import com.yikers.ecs.component.LethalHit
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.component.Player
@@ -25,6 +22,7 @@ import com.yikers.net.ShapeKind
 import com.yikers.ecs.component.augment.Augments
 import com.yikers.ecs.resource.Arena
 import com.yikers.ecs.resource.Refs
+import com.yikers.level.PlatformSpec
 import ktx.box2d.body
 import ktx.box2d.box
 import ktx.box2d.circle
@@ -66,7 +64,6 @@ fun buildArena(pw: PhysicsWorld): Arena {
 class EntityFactory(
     private val world: World,
     private val pw: PhysicsWorld,
-    private val cfg: RunConfig,
     private val refs: Refs,
 ) {
     fun spawnPlayer(
@@ -111,7 +108,6 @@ class EntityFactory(
             it += Controlled(controller)
             it += Intent()
             it += JumpState()
-            it += LethalHit()
             it += Player(slot)
             it += Augments()              // inert: none owned yet
         }
@@ -143,16 +139,11 @@ class EntityFactory(
         return entity
     }
 
-    fun spawnPlatform(y: Float): Entity {
-        val holeWidth = MathUtils.random(GameConfig.PLATFORM_HOLE_MIN, GameConfig.PLATFORM_HOLE_MAX)
-        val holeX = MathUtils.random(
-            GameConfig.PLATFORM_EDGE_MIN,
-            GameConfig.WIDTH - holeWidth - GameConfig.PLATFORM_EDGE_MIN,
-        )
-        val left = buildPlatformHalf(pw, 0f, holeX, y)
-        val right = buildPlatformHalf(pw, holeX + holeWidth, GameConfig.WIDTH, y)
+    fun spawnPlatform(y: Float, spec: PlatformSpec): Entity {
+        val left = buildPlatformHalf(pw, 0f, spec.holeX, y)
+        val right = buildPlatformHalf(pw, spec.holeX + spec.holeWidth, GameConfig.WIDTH, y)
         val entity = world.entity {
-            it += PlatformC(left, right, y, holeX, holeWidth)
+            it += PlatformC(left, right, y, spec.holeX, spec.holeWidth)
         }
         left.userData = entity
         right.userData = entity
