@@ -11,7 +11,7 @@ import com.yikers.ecs.event.Events
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.PhysicsStepSystem
-import com.yikers.ecs.system.PlatformSystem
+import com.yikers.ecs.system.PlatformBridgeSystem
 import com.yikers.ecs.system.TransformSyncSystem
 import com.yikers.physics.PlayContactListener
 import com.yikers.support.HeadlessGdx
@@ -28,15 +28,15 @@ import org.junit.jupiter.api.Test
 @HeadlessGdx
 class PlatformBridgeTest {
 
-    // Build a no-gravity world running only PlatformSystem; state is poked by hand.
+    // Build a no-gravity world running only PlatformBridgeSystem; state is poked by hand.
     private fun bridgeWorld(): TestWorld {
         val pw = physicsWorld(gravityScale = 0f)
         val cfg = RunConfig()
         val runState = RunState().apply { highScore = Int.MAX_VALUE }
         val refs = Refs()
         val world = configureWorld {
-            injectables { add(pw); add(cfg); add(runState); add(refs) }
-            systems { add(PlatformSystem()) }
+            injectables { add(pw); add(runState) }
+            systems { add(PlatformBridgeSystem()) }
         }
         return TestWorld(pw, world, runState, refs, cfg)
     }
@@ -134,11 +134,11 @@ class PlatformBridgeTest {
         val runState = RunState().apply { highScore = Int.MAX_VALUE }
         val refs = Refs()
         val world = configureWorld {
-            injectables { add(pw); add(cfg); add(runState); add(refs) }
+            injectables { add(pw); add(runState) }
             systems {
                 add(PhysicsStepSystem())
                 add(TransformSyncSystem())
-                add(PlatformSystem())
+                add(PlatformBridgeSystem())
             }
         }
         TestWorld(pw, world, runState, refs, cfg).use { tw ->

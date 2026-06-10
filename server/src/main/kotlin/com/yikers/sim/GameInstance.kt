@@ -26,7 +26,9 @@ import com.yikers.ecs.system.EventFlushSystem
 import com.yikers.ecs.system.JumpSystem
 import com.yikers.ecs.system.MoveSystem
 import com.yikers.ecs.system.PhysicsStepSystem
-import com.yikers.ecs.system.PlatformSystem
+import com.yikers.ecs.system.PlatformBridgeSystem
+import com.yikers.ecs.system.PlatformRecycleSystem
+import com.yikers.ecs.system.PlatformScoreSystem
 import com.yikers.ecs.system.ScrollSystem
 import com.yikers.ecs.system.TransformSyncSystem
 import com.yikers.ecs.system.WallFollowSystem
@@ -83,6 +85,7 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(arena)
                 add(refs)
                 add(events)
+                add<LevelGenerator>(generator)
             }
             systems {
                 add(ControlSystem())
@@ -92,7 +95,9 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(PhysicsStepSystem())
                 add(TransformSyncSystem())
                 add(BoulderSystem())
-                add(PlatformSystem())
+                add(PlatformScoreSystem())
+                add(PlatformBridgeSystem())
+                add(PlatformRecycleSystem())
                 add(ScrollSystem())
                 add(DeathSystem())
                 add(EventFlushSystem())

@@ -19,11 +19,14 @@ import com.yikers.ecs.system.EventFlushSystem
 import com.yikers.ecs.system.JumpSystem
 import com.yikers.ecs.system.MoveSystem
 import com.yikers.ecs.system.PhysicsStepSystem
-import com.yikers.ecs.system.PlatformSystem
+import com.yikers.ecs.system.PlatformBridgeSystem
+import com.yikers.ecs.system.PlatformRecycleSystem
+import com.yikers.ecs.system.PlatformScoreSystem
 import com.yikers.ecs.system.ScrollSystem
 import com.yikers.ecs.system.TransformSyncSystem
 import com.yikers.ecs.system.WallFollowSystem
 import com.yikers.level.ClassicGenerator
+import com.yikers.level.LevelGenerator
 import com.yikers.physics.PlayContactListener
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
@@ -77,6 +80,7 @@ fun buildSim(
             add(arena)
             add(refs)
             add(events)
+            add<LevelGenerator>(generator)
         }
         // 10-system PlayScreen order minus RenderSystem (Gdx.gl is null headless).
         systems {
@@ -88,7 +92,9 @@ fun buildSim(
             add(PhysicsStepSystem())
             add(TransformSyncSystem())
             add(BoulderSystem())
-            add(PlatformSystem())
+            add(PlatformScoreSystem())
+            add(PlatformBridgeSystem())
+            add(PlatformRecycleSystem())
             add(ScrollSystem())
             add(DeathSystem())
             add(EventFlushSystem())

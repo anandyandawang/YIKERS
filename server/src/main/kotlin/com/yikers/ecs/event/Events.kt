@@ -8,6 +8,7 @@ sealed interface GameEvent
 
 data class LethalContact(val victim: Entity) : GameEvent
 data class PlatformCleared(val platform: Entity, val scored: Int) : GameEvent
+data class PlatformRecycled(val platform: Entity) : GameEvent
 data class PlayerDied(val player: Entity) : GameEvent
 data class RunEnded(val score: Int) : GameEvent
 
