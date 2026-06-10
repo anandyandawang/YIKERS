@@ -29,4 +29,9 @@ object GameConfig {
     const val WALL_THICKNESS = 0.16f
     const val GROUND_HEIGHT = 0.40f
     const val BOULDER_RADIUS = 0.36f    // 1.5x ball, matches YIKES Ø75/Ø50 ratio
+
+    // augment acquisition
+    const val AUGMENT_OFFER_INTERVAL = 50  // score between offers
+    const val AUGMENT_OFFER_CHOICES = 3    // unowned augments rolled per offer
+    const val MAX_AUGMENTS = 5             // owned cap; picking past it swaps one out
 }

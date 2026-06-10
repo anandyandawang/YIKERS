@@ -11,6 +11,7 @@ import com.yikers.ecs.buildArena
 import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.event.Events
+import com.yikers.ecs.resource.AugmentChoices
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.level.ClassicGenerator
@@ -33,6 +34,7 @@ class GameInstance(private val cfg: SessionConfig) {
         createWorld(gravity = vec2(0f, GameConfig.GRAVITY * cfg.runConfig.gravityScale))
     private val refs = Refs()
     private val events = Events()
+    private val choices = AugmentChoices()
     private val generator: LevelGenerator = ClassicGenerator(cfg.runConfig)
     private val world: World
     private val factory: EntityFactory
@@ -52,7 +54,7 @@ class GameInstance(private val cfg: SessionConfig) {
     init {
         cfg.seed?.let { MathUtils.random.setSeed(it) }
         val arena = buildArena(physicsWorld)
-        world = buildSimWorld(physicsWorld, cfg.runConfig, runState, arena, refs, events, generator)
+        world = buildSimWorld(physicsWorld, cfg.runConfig, runState, arena, refs, events, choices, generator)
         snapshots = SnapshotBuilder(world, runState)
         factory = EntityFactory(world, physicsWorld, refs)
         spawnInitialLayout(factory, generator)
@@ -75,8 +77,13 @@ class GameInstance(private val cfg: SessionConfig) {
     }
 
     // Route input to the slot's relay; a not-yet-spawned slot is ignored.
+    // Augment answers latch separately; AugmentChoiceSystem validates next tick.
     fun applyInput(cmd: InputCommand) {
-        relays[cmd.slot]?.submit(cmd)
+        val relay = relays[cmd.slot] ?: return
+        relay.submit(cmd)
+        if (cmd.pick != null || cmd.skipOffer) {
+            choices.latch(cmd.slot, AugmentChoices.Choice(cmd.pick, cmd.drop, cmd.skipOffer))
+        }
     }
 
     fun tick(deltaTime: Float) {
@@ -114,6 +121,7 @@ class GameInstance(private val cfg: SessionConfig) {
         try {
             val e = entitiesBySlot.remove(slot) ?: return
             relays.remove(slot)
+            choices.clear(slot)   // a leaver's answer must not bind to the slot's next owner
             with(world) {
                 physicsWorld.destroyBody(e[Physics].body)
                 physicsWorld.destroyBody(e[FootSensor].footBody)

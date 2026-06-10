@@ -10,6 +10,7 @@ import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.buildArena
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.event.Events
+import com.yikers.ecs.resource.AugmentChoices
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.level.ClassicGenerator
@@ -27,6 +28,7 @@ class SimHarness(
     val refs: Refs,
     val cfg: RunConfig,
     val events: Events,
+    val choices: AugmentChoices,
     val player: Entity,
     val climbers: List<Entity>,
 ) : AutoCloseable {
@@ -54,13 +56,14 @@ fun buildSim(
     val runState = RunState()
     val refs = Refs()
     val events = Events()
+    val choices = AugmentChoices()
     val generator = ClassicGenerator(cfg)
 
     val pw = physicsWorld(cfg.gravityScale)
     val arena = buildArena(pw)
 
     // ScriptedClimbSystem replaces production's ControlSystem here.
-    val world = buildSimWorld(pw, cfg, runState, arena, refs, events, generator) {
+    val world = buildSimWorld(pw, cfg, runState, arena, refs, events, choices, generator) {
         ScriptedClimbSystem()
     }
 
@@ -86,5 +89,5 @@ fun buildSim(
 
     spawnInitialLayout(factory, generator, platforms = spawnPlatforms, boulders = spawnBoulders)
 
-    return SimHarness(pw, world, runState, refs, cfg, events, climbers.first(), climbers)
+    return SimHarness(pw, world, runState, refs, cfg, events, choices, climbers.first(), climbers)
 }

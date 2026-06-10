@@ -30,18 +30,20 @@ system there and every consumer gets it.
 | # | system | job |
 |---|--------|-----|
 | 1 | `ControlSystem` | controller (relay/bot/script) fills `Intent` |
-| 2 | `MoveSystem` | `Intent.vx` -> body velocity |
-| 3 | `JumpSystem` | `Intent.jump` + `Augments` traits -> jump |
-| 4 | `WallFollowSystem` | walls track `scrollY` |
-| 5 | `PhysicsStepSystem` | Box2D sub-steps at 1/300. contact listener emits events HERE |
-| 6 | `TransformSyncSystem` | body -> `Transform` |
-| 7 | `BoulderSystem` | boulders bounce off walls |
-| 8 | `PlatformScoreSystem` | primary passes slab -> score, emit `PlatformCleared` |
-| 9 | `PlatformBridgeSystem` | all climbers landed + above -> seal hole |
-| 10 | `PlatformRecycleSystem` | slab under kill-line -> fresh slab via `LevelGenerator`, maybe boulder, emit `PlatformRecycled` |
-| 11 | `ScrollSystem` | kill-line rises, accelerates |
-| 12 | `DeathSystem` | kill-line / `LethalContact` -> `Dead`, emit `PlayerDied`, `RunEnded` |
-| 13 | `EventFlushSystem` | clear event queue. MUST stay last |
+| 2 | `AugmentChoiceSystem` | latched offer answer (`AugmentChoices`) -> pick/skip/swap, validated |
+| 3 | `MoveSystem` | `Intent.vx` -> body velocity (`GrantsMoveSpeed` scales) |
+| 4 | `JumpSystem` | `Intent.jump` + `Augments` traits -> jump |
+| 5 | `WallFollowSystem` | walls track `scrollY` |
+| 6 | `PhysicsStepSystem` | Box2D sub-steps at 1/300. contact listener emits events HERE |
+| 7 | `TransformSyncSystem` | body -> `Transform` |
+| 8 | `BoulderSystem` | boulders bounce off walls |
+| 9 | `PlatformScoreSystem` | primary passes slab -> score, emit `PlatformCleared` |
+| 10 | `AugmentOfferSystem` | every 50 score -> `AugmentOffer` (3 random unowned) per living climber |
+| 11 | `PlatformBridgeSystem` | all climbers landed + above -> seal hole |
+| 12 | `PlatformRecycleSystem` | slab under kill-line -> fresh slab via `LevelGenerator`, maybe boulder, emit `PlatformRecycled` |
+| 13 | `ScrollSystem` | kill-line rises, accelerates |
+| 14 | `DeathSystem` | kill-line / `LethalContact` -> `Dead`, emit `PlayerDied`, `RunEnded` |
+| 15 | `EventFlushSystem` | clear event queue. MUST stay last |
 
 ## events (`com.yikers.ecs.event`)
 
@@ -73,7 +75,19 @@ reproduces the run.
 - `Refs` — primary player + boulder pool.
 - `Arena` — ground + walls (static, not entities).
 - `Events` — see above.
+- `AugmentChoices` — per-slot offer answer latched off the wire, consumed by `AugmentChoiceSystem`.
 - `LevelGenerator` — see above.
+
+## augment acquisition
+
+every `AUGMENT_OFFER_INTERVAL` (50) score, each living climber without a pending
+offer gets an `AugmentOffer` component: `AUGMENT_OFFER_CHOICES` (3) random
+augments it doesn't own, rolled from `AugmentCatalog.ALL` via `MathUtils.random`
+(seeded runs reproduce). the offer rides the snapshot (`PlayerSnap.offer` as
+`AugmentId`s); the client answers with one-shot `InputCommand.pick/drop/skipOffer`.
+the server validates: pick must be offered + unowned; at `MAX_AUGMENTS` (5) a
+valid `drop` is required — the swap. invalid answer = dropped, offer stays open.
+the run does NOT pause while an offer is open.
 
 ## networking
 
@@ -90,6 +104,8 @@ never remove/retype without bumping `PROTOCOL_VERSION`.
 **new augment.** data object implementing `Augment` + capability trait in
 `ecs/component/augment/`. systems honor traits via `augments.with<Trait>()`,
 never name concrete augment. see `DoubleJump` + `GrantsAirJumps` + `JumpSystem`.
+to enter the offer pool: add an `AugmentId` (shared — wire id + display copy)
+and list the object in `AugmentCatalog.ALL`. done — acquisition UI is generic.
 
 **new hazard / enemy.** spawn entity with `Physics` + `Transform` +
 `RenderShape` + `Lethal` (+ own component & movement system slotted before

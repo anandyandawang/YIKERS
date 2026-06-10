@@ -5,6 +5,8 @@ import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.component.Player
 import com.yikers.ecs.component.RenderShape
 import com.yikers.ecs.component.Transform
+import com.yikers.ecs.component.augment.AugmentOffer
+import com.yikers.ecs.component.augment.Augments
 import com.yikers.ecs.resource.RunState
 import com.yikers.net.EntitySnap
 import com.yikers.net.PlatformSnap
@@ -33,6 +35,8 @@ class SnapshotBuilder(
                         rs.kind, rs.color.r, rs.color.g, rs.color.b, rs.color.a,
                         t.position.x, t.position.y, t.size.x, t.size.y, t.rotation,
                         slot = player.slot,
+                        augments = e[Augments].owned.map { it.id },
+                        offer = e.getOrNull(AugmentOffer)?.options?.map { it.id } ?: emptyList(),
                     )
                 } else {
                     PropSnap(

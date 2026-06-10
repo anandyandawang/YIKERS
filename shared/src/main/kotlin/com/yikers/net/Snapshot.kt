@@ -24,6 +24,8 @@ data class PlayerSnap(
     override val sizeX: Float, override val sizeY: Float,
     override val rotation: Float,
     val slot: Int,                 // the seat this ball owns (matches Player.slot)
+    val augments: List<AugmentId> = emptyList(),  // owned, oldest first
+    val offer: List<AugmentId> = emptyList(),     // pending augment offer; empty = none
 ) : EntitySnap
 
 @Serializable

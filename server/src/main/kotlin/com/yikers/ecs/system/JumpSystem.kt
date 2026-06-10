@@ -13,10 +13,12 @@ import com.yikers.ecs.component.JumpState
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.augment.Augments
 import com.yikers.ecs.component.augment.GrantsAirJumps
+import com.yikers.ecs.component.augment.GrantsJumpBoost
 import com.yikers.ecs.component.augment.with
 import com.yikers.ecs.resource.RunState
 
-// Ground + air jumps from Intent + Augments. Air jumps gate on GrantsAirJumps.
+// Ground + air jumps from Intent + Augments. Air jumps gate on GrantsAirJumps;
+// GrantsJumpBoost augments scale launch velocity multiplicatively.
 class JumpSystem(
     private val cfg: RunConfig = inject(),
     private val runState: RunState = inject(),
@@ -29,12 +31,14 @@ class JumpSystem(
         if (grounded) jumpState.airJumpsUsed = 0
 
         if (!entity[Intent].jump) return
+        val jumpVelocity = cfg.jumpVelocity * entity[Augments].with<GrantsJumpBoost>()
+            .fold(1f) { acc, t -> acc * t.jumpVelocityMultiplier }
         if (grounded) {
-            body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
+            body.setLinearVelocity(body.linearVelocity.x, jumpVelocity)
         } else {
             val airJumps = entity[Augments].with<GrantsAirJumps>().sumOf { it.extraAirJumps }
             if (jumpState.airJumpsUsed < airJumps) {
-                body.setLinearVelocity(body.linearVelocity.x, cfg.jumpVelocity)
+                body.setLinearVelocity(body.linearVelocity.x, jumpVelocity)
                 jumpState.airJumpsUsed++
             }
         }

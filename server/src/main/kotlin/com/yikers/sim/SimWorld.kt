@@ -8,8 +8,11 @@ import com.yikers.config.RunConfig
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.event.Events
 import com.yikers.ecs.resource.Arena
+import com.yikers.ecs.resource.AugmentChoices
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
+import com.yikers.ecs.system.AugmentChoiceSystem
+import com.yikers.ecs.system.AugmentOfferSystem
 import com.yikers.ecs.system.BoulderSystem
 import com.yikers.ecs.system.ControlSystem
 import com.yikers.ecs.system.DeathSystem
@@ -37,6 +40,7 @@ fun buildSimWorld(
     arena: Arena,
     refs: Refs,
     events: Events,
+    choices: AugmentChoices,
     generator: LevelGenerator,
     // Tests swap in a scripted control system; production relays client input.
     // Factory (not instance): Fleks inject() only resolves during configureWorld.
@@ -50,10 +54,12 @@ fun buildSimWorld(
             add(arena)
             add(refs)
             add(events)
+            add(choices)
             add<LevelGenerator>(generator)
         }
         systems {
             add(controlSystem())
+            add(AugmentChoiceSystem())
             add(MoveSystem())
             add(JumpSystem())
             add(WallFollowSystem())
@@ -61,6 +67,7 @@ fun buildSimWorld(
             add(TransformSyncSystem())
             add(BoulderSystem())
             add(PlatformScoreSystem())
+            add(AugmentOfferSystem())
             add(PlatformBridgeSystem())
             add(PlatformRecycleSystem())
             add(ScrollSystem())
