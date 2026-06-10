@@ -15,7 +15,6 @@ import com.yikers.ecs.component.Controlled
 import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.Intent
 import com.yikers.ecs.component.JumpState
-import com.yikers.ecs.component.LethalHit
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.component.Player
@@ -111,7 +110,6 @@ class EntityFactory(
             it += Controlled(controller)
             it += Intent()
             it += JumpState()
-            it += LethalHit()
             it += Player(slot)
             it += Augments()              // inert: none owned yet
         }

@@ -11,13 +11,15 @@ import com.yikers.ecs.UD_BALL
 import com.yikers.ecs.UD_FOOT
 import com.yikers.ecs.component.FootSensor
 import com.yikers.ecs.component.Lethal
-import com.yikers.ecs.component.LethalHit
 import com.yikers.ecs.component.PlatformC
+import com.yikers.ecs.event.Events
+import com.yikers.ecs.event.LethalContact
 
-// foot <-> solid => grounded count. ball <-> lethal => death flag. Only
-// counters/flags here, no world/body mutation; systems act next tick.
+// foot <-> solid => grounded count. ball <-> lethal => LethalContact event. Only
+// counters/events here, no world/body mutation; systems act later this tick.
 class PlayContactListener(
     private val world: World,
+    private val events: Events,
 ) : ContactListener {
 
     override fun beginContact(contact: Contact) = handle(contact, begin = true)
@@ -37,7 +39,7 @@ class PlayContactListener(
                 with(world) {
                     val fs = player[FootSensor]
                     fs.contacts = (fs.contacts + if (begin) 1 else -1).coerceAtLeast(0)
-                    // Record the landing for PlatformSystem's bridge (ground/walls
+                    // Record the landing for the platform bridge (ground/walls
                     // have no Entity userData -> skipped).
                     if (begin) {
                         val platform = other.body.userData as? Entity
@@ -56,7 +58,7 @@ class PlayContactListener(
                 val otherEntity = other.body.userData as? Entity ?: return
                 if (isLethal(otherEntity)) {
                     val ballEntity = ball.body.userData as? Entity ?: return
-                    with(world) { ballEntity[LethalHit].hit = true }
+                    events.emit(LethalContact(ballEntity))
                 }
             }
         }

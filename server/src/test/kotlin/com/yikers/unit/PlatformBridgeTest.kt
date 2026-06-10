@@ -7,6 +7,7 @@ import com.yikers.control.RelayController
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
+import com.yikers.ecs.event.Events
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.PhysicsStepSystem
@@ -147,7 +148,7 @@ class PlatformBridgeTest {
             val player = factory.spawnPlayer(x = 0.5f, y = 1.5f, controller = RelayController(0), slot = 0)
             refs.player = player
 
-            pw.setContactListener(PlayContactListener(world))
+            pw.setContactListener(PlayContactListener(world, Events()))
 
             world.step(120) // ~2s: fall, land, register, bridge
 

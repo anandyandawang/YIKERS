@@ -16,11 +16,13 @@ import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.Player
 import com.yikers.ecs.component.RenderShape
 import com.yikers.ecs.component.Transform
+import com.yikers.ecs.event.Events
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.BoulderSystem
 import com.yikers.ecs.system.ControlSystem
 import com.yikers.ecs.system.DeathSystem
+import com.yikers.ecs.system.EventFlushSystem
 import com.yikers.ecs.system.JumpSystem
 import com.yikers.ecs.system.MoveSystem
 import com.yikers.ecs.system.PhysicsStepSystem
@@ -50,6 +52,7 @@ class GameInstance(private val cfg: SessionConfig) {
     private val physicsWorld: PhysicsWorld =
         createWorld(gravity = vec2(0f, GameConfig.GRAVITY * cfg.runConfig.gravityScale))
     private val refs = Refs()
+    private val events = Events()
     private val world: World
     private val factory: EntityFactory
     private val renderables: Family   // players + props; Player presence tells them apart
@@ -76,6 +79,7 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(runState)
                 add(arena)
                 add(refs)
+                add(events)
             }
             systems {
                 add(ControlSystem())
@@ -88,6 +92,7 @@ class GameInstance(private val cfg: SessionConfig) {
                 add(PlatformSystem())
                 add(ScrollSystem())
                 add(DeathSystem())
+                add(EventFlushSystem())
             }
         }
         renderables = world.family { all(Transform, RenderShape) }
@@ -100,7 +105,7 @@ class GameInstance(private val cfg: SessionConfig) {
         for (i in 1..GameConfig.NUM_PLATFORMS) {
             factory.spawnBoulder(GameConfig.WIDTH / 2f - GameConfig.BOULDER_RADIUS, -3.0f - i * 0.6f)
         }
-        physicsWorld.setContactListener(PlayContactListener(world))
+        physicsWorld.setContactListener(PlayContactListener(world, events))
     }
 
     // Reserve the lowest free slot; ball spawns next tick. Any-thread safe.

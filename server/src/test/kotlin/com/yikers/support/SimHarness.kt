@@ -10,10 +10,12 @@ import com.yikers.control.Controller
 import com.yikers.ecs.EntityFactory
 import com.yikers.ecs.buildArena
 import com.yikers.ecs.component.Physics
+import com.yikers.ecs.event.Events
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.ecs.system.BoulderSystem
 import com.yikers.ecs.system.DeathSystem
+import com.yikers.ecs.system.EventFlushSystem
 import com.yikers.ecs.system.JumpSystem
 import com.yikers.ecs.system.MoveSystem
 import com.yikers.ecs.system.PhysicsStepSystem
@@ -32,6 +34,7 @@ class SimHarness(
     val runState: RunState,
     val refs: Refs,
     val cfg: RunConfig,
+    val events: Events,
     val player: Entity,
     val climbers: List<Entity>,
 ) : AutoCloseable {
@@ -59,6 +62,7 @@ fun buildSim(
     // Huge highScore => DeathSystem never writes Prefs (Gdx.app file) at run-end.
     val runState = RunState().apply { highScore = Int.MAX_VALUE }
     val refs = Refs()
+    val events = Events()
 
     val pw = physicsWorld(cfg.gravityScale)
     val arena = buildArena(pw)
@@ -70,6 +74,7 @@ fun buildSim(
             add(runState)
             add(arena)
             add(refs)
+            add(events)
         }
         // 10-system PlayScreen order minus RenderSystem (Gdx.gl is null headless).
         systems {
@@ -84,6 +89,7 @@ fun buildSim(
             add(PlatformSystem())
             add(ScrollSystem())
             add(DeathSystem())
+            add(EventFlushSystem())
         }
     }
 
@@ -118,6 +124,6 @@ fun buildSim(
         }
     }
 
-    pw.setContactListener(PlayContactListener(world))
-    return SimHarness(pw, world, runState, refs, cfg, climbers.first(), climbers)
+    pw.setContactListener(PlayContactListener(world, events))
+    return SimHarness(pw, world, runState, refs, cfg, events, climbers.first(), climbers)
 }
