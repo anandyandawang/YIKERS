@@ -2,7 +2,7 @@
 // bot is a client, not part of the authority. Needs the wire contract + client seam.
 plugins {
     alias(libs.plugins.kotlin.jvm)
-    // `application` = runnable: ./gradlew :bot:run (connects bots to a server).
+    // `application` = runnable: ./gradlew :bot:run (connects one bot to a server).
     application
 }
 

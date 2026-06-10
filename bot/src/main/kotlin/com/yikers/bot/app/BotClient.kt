@@ -7,25 +7,23 @@ import com.yikers.net.Participant
 import java.util.concurrent.locks.LockSupport
 import kotlin.concurrent.thread
 
-// Connects N bot clients over the real socket; one daemon thread pumps them at the
-// sim tick rate (server owns the clock).
-class BotRunner(
+// One bot = one client. Connects a single autopilot over the real socket and pumps
+// it at the sim tick rate (server owns the clock) on its own daemon thread. Want
+// more bots? Start more clients.
+class BotClient(
     private val host: String,
     private val port: Int,
-    private val count: Int,
 ) {
-    private val participants = ArrayList<Participant>()
+    private var participant: Participant? = null
 
     @Volatile
     private var running = false
     private var pumpThread: Thread? = null
 
     fun start() {
-        repeat(count) {
-            val session = NetworkGameSession.connect(host, port)
-            // Use the server's own run feel, handed over in the Welcome handshake.
-            participants.add(Participant(session, BotAgent(session.config.runConfig)))
-        }
+        val session = NetworkGameSession.connect(host, port)
+        // Use the server's own run feel, handed over in the Welcome handshake.
+        participant = Participant(session, BotAgent(session.config.runConfig))
         running = true
         pumpThread = thread(name = "yikers-bot-pump", isDaemon = true) { runPumpLoop() }
     }
@@ -36,7 +34,7 @@ class BotRunner(
         var next = System.nanoTime()
         while (running) {
             try {
-                participants.forEach { it.pump(dt) }
+                participant?.pump(dt)
             } catch (e: Exception) {
                 System.err.println("yikers-bot-pump error: ${e.stackTraceToString()}")
             }
@@ -49,7 +47,7 @@ class BotRunner(
     fun stop() {
         running = false
         pumpThread?.let { runCatching { it.join(500) } }
-        participants.forEach { it.close() }
-        participants.clear()
+        participant?.close()
+        participant = null
     }
 }

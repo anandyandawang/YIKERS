@@ -3,7 +3,7 @@ package com.yikers.e2e
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.backends.headless.mock.input.MockInput
-import com.yikers.bot.app.BotRunner
+import com.yikers.bot.app.BotClient
 import com.yikers.control.HumanAgent
 import com.yikers.control.KeyProfile
 import com.yikers.net.DedicatedServer
@@ -50,9 +50,12 @@ class LanPartyTest {
             guestSession,
             HumanAgent(guestSession.config.runConfig.horizontalSpeed, KeyProfile.WASD),
         )
-        // Two bots join the same port (own daemon pump thread).
-        val bots = BotRunner("127.0.0.1", server.port, count = 2)
-        bots.start()
+        // Two bots join the same port -- one BotClient each (each its own daemon
+        // pump thread), because one :bot == one bot.
+        val bot1 = BotClient("127.0.0.1", server.port)
+        val bot2 = BotClient("127.0.0.1", server.port)
+        bot1.start()
+        bot2.start()
 
         try {
             // All four slots must land in the one shared world.
@@ -109,7 +112,8 @@ class LanPartyTest {
         } finally {
             hostHuman.close()
             guestHuman.close()
-            bots.stop()
+            bot1.stop()
+            bot2.stop()
             server.stop()
             Gdx.input = realInput
         }
