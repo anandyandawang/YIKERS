@@ -6,9 +6,9 @@ each piece below own ONE job. keep it that way.
 ## modules
 
 ```
-shared        wire types + configs. NO engine imports (no gdx/fleks/ktx). pure data.
+shared        wire types + configs + boot knobs. NO engine imports (no gdx/fleks/ktx). pure data.
 server        authoritative sim: Fleks ECS + Box2D + 60Hz DedicatedServer.
-client-shared session abstractions (GameSession, GameHost, InputAgent). engine-free.
+client-shared session abstractions (GameSession, InputAgent, Participant). engine-free.
 client        libGDX frontend: screens + SnapshotRenderer. draws snapshots, owns no sim.
 bot           autopilot InputAgent (BotBrain). engine-free, sees only WorldSnapshot.
 e2e           real-socket tests: server + clients over TCP.
@@ -23,6 +23,9 @@ rule of thumb: game truth live in `server`. client and bot only ever see
 
 `DedicatedServer` tick 60Hz: drain inputs -> `GameInstance.tick(dt)` -> broadcast
 snapshot. inside tick, Fleks systems run in THIS order. order is load-bearing.
+the order lives in ONE place: `sim/SimWorld.kt` (`buildSimWorld`) — production
+`GameInstance` and the test harness `buildSim` both assemble from it, so add a
+system there and every consumer gets it.
 
 | # | system | job |
 |---|--------|-----|
@@ -76,7 +79,9 @@ reproduces the run.
 
 TCP, length-prefixed CBOR frames (`Framing`, `Wire`). sealed `Envelope`:
 `Join` -> `Welcome(slot, SessionConfig)` then `Input` up / `Snapshot` down.
-UDP broadcast discovery on 54545. server re-stamps input slot — client cannot
+client side, `NetworkGameSession.connect(host, port)` runs the handshake and
+returns the `GameSession` (seat + config bound for its whole life). UDP
+broadcast discovery on 54545. server re-stamps input slot — client cannot
 hijack seat. CBOR decode ignores unknown keys: ADD fields with defaults freely,
 never remove/retype without bumping `PROTOCOL_VERSION`.
 
@@ -114,7 +119,7 @@ etc. mutate `RunConfig` / grant augment there.
 - feel scale: game tuned from YIKES at 0.2x realtime. new velocity x0.2, new
   accel x0.04 of YIKES numbers.
 - `shared` / `client-shared` / `bot` import no gdx/fleks/ktx. `client` touches
-  `server` only via `DedicatedServer` + `BootConfig`. arch tests enforce.
+  `server` only via `DedicatedServer`. arch tests enforce.
 - `EventFlushSystem` last, always.
 
 ## tests

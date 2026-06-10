@@ -33,14 +33,13 @@ class ArchitectureTest {
         Konsist.scopeFromModule("bot").assertNoImports(engine)
 
     // The one sanctioned edge: client depends on server (gradle), so the compiler
-    // allows ANY server import. Restrict it to the two host/boot touchpoints.
+    // allows ANY server import. Restrict it to the single host touchpoint.
     // serverTypes is derived from server's source -> no hand-maintained list, and it
     // fails CLOSED: a new server type imported by client is caught with no edit.
     @Test
-    fun `client touches server only via DedicatedServer and BootConfig`() {
+    fun `client touches server only via DedicatedServer`() {
         val sanctioned = setOf(
             "com.yikers.net.DedicatedServer",
-            "com.yikers.control.BootConfig",
         )
         val serverTypes = with(Konsist.scopeFromModule("server")) {
             (

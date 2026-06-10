@@ -3,9 +3,8 @@ package com.yikers.e2e
 import com.yikers.net.DedicatedServer
 import com.yikers.net.GameSession
 import com.yikers.net.InputCommand
-import com.yikers.net.NetworkHost
+import com.yikers.net.NetworkGameSession
 import com.yikers.net.PlayerSnap
-import com.yikers.net.RoomId
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
 import com.yikers.support.HeadlessGdx
@@ -25,8 +24,8 @@ class NetworkRunTest {
         )
         server.start()
 
-        val p0 = NetworkHost("127.0.0.1", server.port).join(RoomId("net"))
-        val p1 = NetworkHost("127.0.0.1", server.port).join(RoomId("net"))
+        val p0 = NetworkGameSession.connect("127.0.0.1", server.port)
+        val p1 = NetworkGameSession.connect("127.0.0.1", server.port)
         try {
             awaitTick(p0)
             awaitTick(p1)

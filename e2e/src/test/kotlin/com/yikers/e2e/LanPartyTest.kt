@@ -7,10 +7,9 @@ import com.yikers.bot.app.BotRunner
 import com.yikers.control.HumanAgent
 import com.yikers.control.KeyProfile
 import com.yikers.net.DedicatedServer
-import com.yikers.net.NetworkHost
+import com.yikers.net.NetworkGameSession
 import com.yikers.net.Participant
 import com.yikers.net.PlayerSnap
-import com.yikers.net.RoomId
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
 import com.yikers.support.HeadlessGdx
@@ -39,13 +38,18 @@ class LanPartyTest {
         val pad = TwoHumanKeyboard()
         Gdx.input = pad
 
-        val speed = SessionConfig().runConfig.horizontalSpeed
         // Host human joins own server on loopback (like joinTarget("127.0.0.1", port)).
-        val hostSession = NetworkHost("127.0.0.1", server.port).join(RoomId("net"))
-        val hostHuman = Participant(hostSession, HumanAgent(speed, KeyProfile.ARROWS))
+        val hostSession = NetworkGameSession.connect("127.0.0.1", server.port)
+        val hostHuman = Participant(
+            hostSession,
+            HumanAgent(hostSession.config.runConfig.horizontalSpeed, KeyProfile.ARROWS),
+        )
         // Guest human joins the same port.
-        val guestSession = NetworkHost("127.0.0.1", server.port).join(RoomId("net"))
-        val guestHuman = Participant(guestSession, HumanAgent(speed, KeyProfile.WASD))
+        val guestSession = NetworkGameSession.connect("127.0.0.1", server.port)
+        val guestHuman = Participant(
+            guestSession,
+            HumanAgent(guestSession.config.runConfig.horizontalSpeed, KeyProfile.WASD),
+        )
         // Two bots join the same port (own daemon pump thread).
         val bots = BotRunner("127.0.0.1", server.port, count = 2)
         bots.start()

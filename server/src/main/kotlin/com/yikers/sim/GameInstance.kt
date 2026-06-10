@@ -3,7 +3,6 @@ package com.yikers.sim
 import com.badlogic.gdx.math.MathUtils
 import com.github.quillraven.fleks.Entity
 import com.github.quillraven.fleks.World
-import com.github.quillraven.fleks.configureWorld
 import com.yikers.config.GameConfig
 import com.yikers.control.Palette
 import com.yikers.control.RelayController
@@ -14,25 +13,11 @@ import com.yikers.ecs.component.Physics
 import com.yikers.ecs.event.Events
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
-import com.yikers.ecs.system.BoulderSystem
-import com.yikers.ecs.system.ControlSystem
-import com.yikers.ecs.system.DeathSystem
-import com.yikers.ecs.system.EventFlushSystem
-import com.yikers.ecs.system.JumpSystem
-import com.yikers.ecs.system.MoveSystem
-import com.yikers.ecs.system.PhysicsStepSystem
-import com.yikers.ecs.system.PlatformBridgeSystem
-import com.yikers.ecs.system.PlatformRecycleSystem
-import com.yikers.ecs.system.PlatformScoreSystem
-import com.yikers.ecs.system.ScrollSystem
-import com.yikers.ecs.system.TransformSyncSystem
-import com.yikers.ecs.system.WallFollowSystem
 import com.yikers.level.ClassicGenerator
 import com.yikers.level.LevelGenerator
 import com.yikers.net.InputCommand
 import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
-import com.yikers.physics.PlayContactListener
 import java.util.concurrent.ConcurrentLinkedQueue
 import ktx.box2d.createWorld
 import ktx.math.vec2
@@ -67,43 +52,10 @@ class GameInstance(private val cfg: SessionConfig) {
     init {
         cfg.seed?.let { MathUtils.random.setSeed(it) }
         val arena = buildArena(physicsWorld)
-        world = configureWorld {
-            injectables {
-                add(physicsWorld)
-                add(cfg.runConfig)
-                add(runState)
-                add(arena)
-                add(refs)
-                add(events)
-                add<LevelGenerator>(generator)
-            }
-            systems {
-                add(ControlSystem())
-                add(MoveSystem())
-                add(JumpSystem())
-                add(WallFollowSystem())
-                add(PhysicsStepSystem())
-                add(TransformSyncSystem())
-                add(BoulderSystem())
-                add(PlatformScoreSystem())
-                add(PlatformBridgeSystem())
-                add(PlatformRecycleSystem())
-                add(ScrollSystem())
-                add(DeathSystem())
-                add(EventFlushSystem())
-            }
-        }
+        world = buildSimWorld(physicsWorld, cfg.runConfig, runState, arena, refs, events, generator)
         snapshots = SnapshotBuilder(world, runState)
-
         factory = EntityFactory(world, physicsWorld, refs)
-        for (i in 1..GameConfig.NUM_PLATFORMS) {
-            val y = GameConfig.GROUND_HEIGHT + i * GameConfig.PLATFORM_INTERVALS
-            factory.spawnPlatform(y, generator.nextPlatform(y))
-        }
-        for (i in 1..GameConfig.NUM_PLATFORMS) {
-            factory.spawnBoulder(GameConfig.WIDTH / 2f - GameConfig.BOULDER_RADIUS, -3.0f - i * 0.6f)
-        }
-        physicsWorld.setContactListener(PlayContactListener(world, events))
+        spawnInitialLayout(factory, generator)
     }
 
     // Reserve the lowest free slot; ball spawns next tick. Any-thread safe.

@@ -3,9 +3,7 @@ package com.yikers.bot.app
 import com.yikers.bot.BotAgent
 import com.yikers.config.GameConfig
 import com.yikers.net.NetworkGameSession
-import com.yikers.net.NetworkHost
 import com.yikers.net.Participant
-import com.yikers.net.RoomId
 import java.util.concurrent.locks.LockSupport
 import kotlin.concurrent.thread
 
@@ -24,7 +22,7 @@ class BotRunner(
 
     fun start() {
         repeat(count) {
-            val session = NetworkHost(host, port).join(RoomId("bot")) as NetworkGameSession
+            val session = NetworkGameSession.connect(host, port)
             // Use the server's own run feel, handed over in the Welcome handshake.
             participants.add(Participant(session, BotAgent(session.config.runConfig)))
         }

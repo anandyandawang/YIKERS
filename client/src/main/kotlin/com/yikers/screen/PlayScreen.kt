@@ -11,19 +11,15 @@ import com.yikers.YikersGame
 import com.yikers.config.GameConfig
 import com.yikers.config.Prefs
 import com.yikers.control.HumanAgent
-import com.yikers.net.GameHost
 import com.yikers.net.NetworkGameSession
-import com.yikers.net.NetworkHost
 import com.yikers.net.Participant
-import com.yikers.net.RoomId
 import com.yikers.net.Session
-import com.yikers.net.SessionConfig
 import com.yikers.net.WorldSnapshot
 import com.yikers.render.SnapshotRenderer
 import ktx.app.KtxScreen
 
-// Owns one run client-side: open a room, join, then each frame pump -> step ->
-// render the snapshot.
+// Owns one run client-side: join the server, then each frame pump input ->
+// render the latest snapshot.
 class PlayScreen(private val game: YikersGame) : KtxScreen {
     private val camera = OrthographicCamera()
     // ExtendViewport: pin WIDTH full-width, extend HEIGHT on taller phones.
@@ -36,10 +32,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
 
     private val renderer = SnapshotRenderer(game.shape, camera)
 
-    private var host: GameHost? = null
-    private var room: RoomId? = null
     private var human: Participant? = null
-    private var speed = 0f
 
     private var persisted = false
 
@@ -52,21 +45,15 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         hudCamera.position.set(GameConfig.WIDTH_PX / 2f, GameConfig.HEIGHT_PX / 2f, 0f)
         hudCamera.update()
 
-        // Network-only now. Server owns config; open() sentinel, config via Welcome.
-        val h: GameHost = NetworkHost(Session.host, Session.port)
-        try {
-            val r = h.open(SessionConfig())
-            room = r
-            host = h
-            val s = h.join(r)
-            speed = (s as? NetworkGameSession)?.config?.runConfig?.horizontalSpeed
-                ?: SessionConfig().runConfig.horizontalSpeed
-            human = Participant(s, HumanAgent(speed))
+        // Server owns the run config; the Welcome handshake hands it over.
+        val session = try {
+            NetworkGameSession.connect(Session.host, Session.port)
         } catch (e: Exception) {
             Gdx.app.error("YIKERS", "join failed", e)
             game.setScreen<LobbyScreen>()
             return
         }
+        human = Participant(session, HumanAgent(session.config.runConfig.horizontalSpeed))
     }
 
     override fun render(delta: Float) {
@@ -135,9 +122,6 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
 
     private fun teardown() {
         human?.close()
-        host?.let { h -> room?.let { h.close(it) } }
-        host = null
-        room = null
         human = null
     }
 }

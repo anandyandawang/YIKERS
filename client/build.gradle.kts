@@ -8,9 +8,10 @@ plugins {
 
 dependencies {
     // api so the launchers (which depend on :client) also see shared GameConfig and
-    // server BootConfig — the only sim types a launcher touches at boot.
+    // BootConfig — the only sim types a launcher touches at boot. :server stays
+    // implementation: only :client's screens boot a DedicatedServer.
     api(project(":shared"))
-    api(project(":server"))
+    implementation(project(":server"))
     implementation(project(":client-shared"))
     implementation(libs.gdx)
     // ktx = idiomatic Kotlin libGDX helpers (app shell + graphics + math).
