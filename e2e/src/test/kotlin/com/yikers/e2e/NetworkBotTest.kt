@@ -1,6 +1,6 @@
 package com.yikers.e2e
 
-import com.yikers.bot.app.BotRunner
+import com.yikers.bot.app.BotClient
 import com.yikers.net.DedicatedServer
 import com.yikers.net.SessionConfig
 import com.yikers.support.HeadlessGdx
@@ -15,15 +15,15 @@ class NetworkBotTest {
         val server = DedicatedServer(name = "test", tcpPort = 0, cfg = SessionConfig(seed = SEED))
         server.start()
 
-        val bots = BotRunner("127.0.0.1", server.port, count = 1)
-        bots.start()
+        val bot = BotClient("127.0.0.1", server.port)
+        bot.start()
         try {
             val climbed = awaitScore(server, target = 1, timeoutMs = 12_000)
             assertTrue(climbed) {
                 "a socket-connected bot must climb + score; score=${server.latestSnapshot?.score}"
             }
         } finally {
-            bots.stop()
+            bot.stop()
             server.stop()
         }
     }
