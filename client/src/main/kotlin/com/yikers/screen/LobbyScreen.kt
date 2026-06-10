@@ -3,7 +3,6 @@ package com.yikers.screen
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
-import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Rectangle
 import com.badlogic.gdx.math.Vector2
@@ -17,6 +16,8 @@ import com.yikers.net.SessionConfig
 import com.yikers.net.discovery.DEFAULT_TCP_PORT
 import com.yikers.net.discovery.DiscoveredServer
 import com.yikers.net.discovery.LanScanner
+import com.yikers.ui.UiColors
+import com.yikers.ui.UiText
 import ktx.app.KtxScreen
 import java.net.InetAddress
 import kotlin.concurrent.thread
@@ -24,7 +25,7 @@ import kotlin.concurrent.thread
 // Multiplayer lobby: LAN discovery rows + Host / Join 127.0.0.1 / Refresh / Back.
 class LobbyScreen(private val game: YikersGame) : KtxScreen {
     private val viewport = ExtendViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX)
-    private val layout = GlyphLayout()
+    private val ui = UiText(game.font, game.batch)
     private val touch = Vector2()
 
     @Volatile
@@ -65,14 +66,14 @@ class LobbyScreen(private val game: YikersGame) : KtxScreen {
         layoutRows(w, h)
         handleInput()
 
-        ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
+        ScreenUtils.clear(UiColors.BG)
 
         val shape = game.shape
         shape.projectionMatrix = viewport.camera.combined
         shape.begin(ShapeRenderer.ShapeType.Filled)
-        shape.color = ROW_FILL
+        shape.color = UiColors.ROW
         rows.forEach { (r, _) -> shape.rect(r.x, r.y, r.width, r.height) }
-        shape.color = BUTTON_FILL
+        shape.color = UiColors.BUTTON
         listOf(hostBtn, joinLocalBtn, refreshBtn, backBtn).forEach {
             shape.rect(it.x, it.y, it.width, it.height)
         }
@@ -82,15 +83,15 @@ class LobbyScreen(private val game: YikersGame) : KtxScreen {
         batch.projectionMatrix = viewport.camera.combined
         batch.begin()
         game.font.color = Color.CORAL
-        centered("LAN GAMES", h - 28f, w)
+        ui.centered("LAN GAMES", h - 28f, w)
         game.font.color = Color.LIGHT_GRAY
-        centered(statusLine(), h - 60f, w)
+        ui.centered(statusLine(), h - 60f, w)
         game.font.color = Color.WHITE
-        rows.forEach { (r, s) -> labelLeft(s.label(), r) }
-        labelIn("HOST", hostBtn)
-        labelIn("JOIN 127.0.0.1", joinLocalBtn)
-        labelIn("REFRESH", refreshBtn)
-        labelIn("BACK", backBtn)
+        rows.forEach { (r, s) -> ui.leftIn(s.label(), r) }
+        ui.inRect("HOST", hostBtn)
+        ui.inRect("JOIN 127.0.0.1", joinLocalBtn)
+        ui.inRect("REFRESH", refreshBtn)
+        ui.inRect("BACK", backBtn)
         batch.end()
     }
 
@@ -150,9 +151,8 @@ class LobbyScreen(private val game: YikersGame) : KtxScreen {
         val name = "Host @ ${hostName()}"
         val server = runCatching { DedicatedServer(name, DEFAULT_TCP_PORT, cfg) }
             .getOrElse { DedicatedServer(name, 0, cfg) }
-        server.start()
-        Session.setHosted(server)
-        joinTarget("127.0.0.1", server.port)
+        Session.hostAndJoin(server)
+        game.setScreen<PlayScreen>()
     }
 
     private fun joinTarget(host: String, port: Int) {
@@ -163,31 +163,7 @@ class LobbyScreen(private val game: YikersGame) : KtxScreen {
     private fun hostName(): String =
         runCatching { InetAddress.getLocalHost().hostName }.getOrDefault("me")
 
-    private fun centered(text: String, y: Float, w: Float) {
-        layout.setText(game.font, text)
-        game.font.draw(game.batch, text, (w - layout.width) / 2f, y)
-    }
-
-    private fun labelIn(text: String, rect: Rectangle) {
-        layout.setText(game.font, text)
-        game.font.draw(
-            game.batch, text,
-            rect.x + (rect.width - layout.width) / 2f,
-            rect.y + (rect.height + layout.height) / 2f,
-        )
-    }
-
-    private fun labelLeft(text: String, rect: Rectangle) {
-        layout.setText(game.font, text)
-        game.font.draw(game.batch, text, rect.x + 12f, rect.y + (rect.height + layout.height) / 2f)
-    }
-
     override fun resize(width: Int, height: Int) {
         viewport.update(width, height, true)
-    }
-
-    companion object {
-        private val ROW_FILL = Color(0.16f, 0.20f, 0.26f, 1f)
-        private val BUTTON_FILL = Color(0.18f, 0.22f, 0.30f, 1f)
     }
 }

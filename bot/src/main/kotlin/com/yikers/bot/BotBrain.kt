@@ -75,11 +75,11 @@ class BotBrain {
     private fun dodgeVx(self: BotSelf, v: BotView): Float? {
         var bestTtc = Float.MAX_VALUE
         var bestVx = 0f
-        fun scan(count: Int, xs: FloatArray, ys: FloatArray, vxs: FloatArray) {
-            for (i in 0 until count) {
-                if (abs(self.y - ys[i]) >= DANGER_BAND_PX) continue
-                val rx = xs[i] - self.x
-                val bvx = vxs[i]
+        fun scan(t: ObstacleTrack) {
+            for (i in 0 until t.count) {
+                if (abs(self.y - t.y[i]) >= DANGER_BAND_PX) continue
+                val rx = t.x[i] - self.x
+                val bvx = t.vx[i]
                 if (rx * bvx >= 0f) continue
                 if (abs(rx) >= DANGER_RADIUS_PX * 3f) continue
                 val ttc = abs(rx) / maxOf(0.01f, abs(bvx))
@@ -89,8 +89,8 @@ class BotBrain {
                 }
             }
         }
-        scan(v.boulderCount, v.boulderX, v.boulderY, v.boulderVx)
-        scan(v.otherCount, v.otherX, v.otherY, v.otherVx)
+        scan(v.boulders)
+        scan(v.others)
         if (bestTtc == Float.MAX_VALUE) return null
         var dir = -sign(bestVx)
         if (dir == 0f) dir = 1f
@@ -101,23 +101,24 @@ class BotBrain {
 
     // false if a boulder will sit over the target hole on arrival, or hit us mid-ascent.
     private fun jumpIsSafe(self: BotSelf, v: BotView, jumpPx: Float, g: Float): Boolean {
-        if (v.boulderCount == 0 || g <= 0f) return true
+        val b = v.boulders
+        if (b.count == 0 || g <= 0f) return true
         val dh = (v.targetPlatformY - self.y).coerceAtLeast(0f)
         val disc = jumpPx * jumpPx - 2f * g * dh
         val arrivalT = if (disc <= 0f) jumpPx / g else (jumpPx - sqrt(disc)) / g
         if (arrivalT <= 0f) return true
-        for (i in 0 until v.boulderCount) {
+        for (i in 0 until b.count) {
             if (v.targetHoleWidth > 0f &&
-                abs(v.boulderY[i] - v.targetPlatformY) < DANGER_BAND_PX &&
-                abs(projX(v.boulderX[i], v.boulderVx[i], arrivalT) - v.targetHoleCenterX) <
+                abs(b.y[i] - v.targetPlatformY) < DANGER_BAND_PX &&
+                abs(projX(b.x[i], b.vx[i], arrivalT) - v.targetHoleCenterX) <
                 v.targetHoleWidth / 2f + GameConfig.BOULDER_RADIUS + JUMP_BOULDER_PAD
             ) return false
             var s = 0.25f
             while (s <= 1.0001f) {
                 val t = s * arrivalT
                 val selfY = self.y + jumpPx * t - 0.5f * g * t * t
-                val bx = projX(v.boulderX[i], v.boulderVx[i], t)
-                val by = v.boulderY[i] + v.boulderVy[i] * t - 0.5f * g * t * t
+                val bx = projX(b.x[i], b.vx[i], t)
+                val by = b.y[i] + b.vy[i] * t - 0.5f * g * t * t
                 val ddx = self.x - bx
                 val ddy = selfY - by
                 if (ddx * ddx + ddy * ddy < DANGER_RADIUS_PX * DANGER_RADIUS_PX) return false

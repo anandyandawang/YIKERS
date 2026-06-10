@@ -4,7 +4,6 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.OrthographicCamera
-import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.utils.ScreenUtils
 import com.badlogic.gdx.utils.viewport.ExtendViewport
 import com.yikers.YikersGame
@@ -16,6 +15,8 @@ import com.yikers.net.Participant
 import com.yikers.net.Session
 import com.yikers.net.WorldSnapshot
 import com.yikers.render.SnapshotRenderer
+import com.yikers.ui.UiColors
+import com.yikers.ui.UiText
 import ktx.app.KtxScreen
 
 // Owns one run client-side: join the server, then each frame pump input ->
@@ -28,7 +29,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
     // HUD in its own pixel space (world cam is meters).
     private val hudCamera = OrthographicCamera()
     private val hudViewport = ExtendViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX, hudCamera)
-    private val layout = GlyphLayout()
+    private val ui = UiText(game.font, game.batch)
 
     private val renderer = SnapshotRenderer(game.shape, camera)
 
@@ -58,7 +59,7 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
 
     override fun render(delta: Float) {
         val human = human ?: return
-        ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
+        ScreenUtils.clear(UiColors.BG)
         viewport.apply()
 
         human.pump(delta)                 // decide + submit input
@@ -85,18 +86,13 @@ class PlayScreen(private val game: YikersGame) : KtxScreen {
         if (snap.dead) {
             val midY = h / 2f
             font.color = Color.CORAL
-            centeredHud("GAME OVER", midY + 80f, w)
+            ui.centered("GAME OVER", midY + 80f, w)
             font.color = Color.WHITE
-            centeredHud("SCORE ${snap.score}", midY + 20f, w)
-            centeredHud("HIGH ${snap.highScore}", midY - 20f, w)
-            centeredHud("press space", midY - 90f, w)
+            ui.centered("SCORE ${snap.score}", midY + 20f, w)
+            ui.centered("HIGH ${snap.highScore}", midY - 20f, w)
+            ui.centered("press space", midY - 90f, w)
         }
         batch.end()
-    }
-
-    private fun centeredHud(text: String, y: Float, w: Float) {
-        layout.setText(game.font, text)
-        game.font.draw(game.batch, text, w / 2f - layout.width / 2f, y)
     }
 
     // Persist the high score once (client owns Prefs), then wait for a key/tap.

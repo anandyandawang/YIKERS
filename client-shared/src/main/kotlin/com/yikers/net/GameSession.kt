@@ -5,7 +5,7 @@ interface GameSession {
     val slot: Int                 // this client's seat, assigned at join
     val config: SessionConfig     // run params, handed over at join
 
-    fun submitInput(cmd: InputCommand)
+    fun submitInput(cmd: InputCommand)   // impl stamps cmd.slot with this seat
     fun snapshot(): WorldSnapshot
     fun close()
 }

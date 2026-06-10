@@ -5,12 +5,12 @@ import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import com.github.quillraven.fleks.World.Companion.inject
 import com.yikers.config.GameConfig
-import com.yikers.ecs.buildPlatformHalf
 import com.yikers.ecs.component.BoulderC
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.event.Events
 import com.yikers.ecs.event.PlatformRecycled
+import com.yikers.ecs.rebuildPlatformBodies
 import com.yikers.ecs.resource.Refs
 import com.yikers.ecs.resource.RunState
 import com.yikers.level.BoulderSpec
@@ -49,15 +49,7 @@ class PlatformRecycleSystem(
         val spec = generator.nextPlatform(newY)
         p.holeX = spec.holeX
         p.holeWidth = spec.holeWidth
-        // fixtures can't resize -> rebuild both halves (safe: after step).
-        pw.destroyBody(p.leftBody)
-        pw.destroyBody(p.rightBody)
-        val left = buildPlatformHalf(pw, 0f, p.holeX, newY)
-        val right = buildPlatformHalf(pw, p.holeX + p.holeWidth, GameConfig.WIDTH, newY)
-        left.userData = entity
-        right.userData = entity
-        p.leftBody = left
-        p.rightBody = right
+        rebuildPlatformBodies(pw, entity, p, p.holeX, p.holeWidth)
     }
 
     // Boulders are pooled, never spawned mid-run: reposition the oldest.
