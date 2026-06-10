@@ -25,6 +25,13 @@ object Session {
         hostedServer = server
     }
 
+    // Adopt an in-process server (stopping any previous) and aim the next join at it.
+    fun hostAndJoin(server: DedicatedServer) {
+        setHosted(server)
+        server.start()
+        network("127.0.0.1", server.port)
+    }
+
     fun shutdownHost() {
         hostedServer?.stop()
         hostedServer = null

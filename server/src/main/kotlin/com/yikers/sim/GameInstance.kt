@@ -111,18 +111,18 @@ class GameInstance(private val cfg: SessionConfig) {
     }
 
     private fun despawnPlayerSlot(slot: Int) {
-        val e = entitiesBySlot.remove(slot) ?: run {
+        try {
+            val e = entitiesBySlot.remove(slot) ?: return
+            relays.remove(slot)
+            with(world) {
+                physicsWorld.destroyBody(e[Physics].body)
+                physicsWorld.destroyBody(e[FootSensor].footBody)
+            }
+            world -= e
+            if (refs.player == e) refs.player = entitiesBySlot.values.firstOrNull()
+        } finally {
             synchronized(slotLock) { usedSlots.remove(slot) }
-            return
         }
-        relays.remove(slot)
-        with(world) {
-            physicsWorld.destroyBody(e[Physics].body)
-            physicsWorld.destroyBody(e[FootSensor].footBody)
-        }
-        world -= e
-        if (refs.player == e) refs.player = entitiesBySlot.values.firstOrNull()
-        synchronized(slotLock) { usedSlots.remove(slot) }
     }
 
     fun snapshot(): WorldSnapshot = snapshots.build(tickCount)

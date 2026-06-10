@@ -3,7 +3,6 @@ package com.yikers.screen
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
-import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Rectangle
 import com.badlogic.gdx.math.Vector2
@@ -16,11 +15,13 @@ import com.yikers.config.Prefs
 import com.yikers.net.DedicatedServer
 import com.yikers.net.Session
 import com.yikers.net.SessionConfig
+import com.yikers.ui.UiColors
+import com.yikers.ui.UiText
 import ktx.app.KtxScreen
 
 class MenuScreen(private val game: YikersGame) : KtxScreen {
     private val viewport = ExtendViewport(GameConfig.WIDTH_PX, GameConfig.HEIGHT_PX)
-    private val layout = GlyphLayout()
+    private val ui = UiText(game.font, game.batch)
     private val touch = Vector2()
 
     private val singleBtn = Rectangle()
@@ -39,12 +40,12 @@ class MenuScreen(private val game: YikersGame) : KtxScreen {
 
         handleInput()
 
-        ScreenUtils.clear(0.10f, 0.12f, 0.16f, 1f)
+        ScreenUtils.clear(UiColors.BG)
 
         val shape = game.shape
         shape.projectionMatrix = viewport.camera.combined
         shape.begin(ShapeRenderer.ShapeType.Filled)
-        shape.color = BUTTON_FILL
+        shape.color = UiColors.BUTTON
         shape.rect(singleBtn.x, singleBtn.y, singleBtn.width, singleBtn.height)
         shape.rect(multiBtn.x, multiBtn.y, multiBtn.width, multiBtn.height)
         shape.end()
@@ -53,11 +54,11 @@ class MenuScreen(private val game: YikersGame) : KtxScreen {
         batch.projectionMatrix = viewport.camera.combined
         batch.begin()
         game.font.color = Color.CORAL
-        centered(GameConfig.TITLE, h * 0.74f, w)
+        ui.centered(GameConfig.TITLE, h * 0.74f, w)
         game.font.color = Color.WHITE
-        centered("HIGH ${Prefs.highScore}", h * 0.64f, w)
-        labelIn("SINGLE PLAYER", singleBtn)
-        labelIn("MULTIPLAYER", multiBtn)
+        ui.centered("HIGH ${Prefs.highScore}", h * 0.64f, w)
+        ui.inRect("SINGLE PLAYER", singleBtn)
+        ui.inRect("MULTIPLAYER", multiBtn)
         batch.end()
     }
 
@@ -91,31 +92,11 @@ class MenuScreen(private val game: YikersGame) : KtxScreen {
                 Gdx.app.error("YIKERS", "solo server boot failed", it)
                 return
             }
-        server.start()
-        Session.setHosted(server)
-        Session.network("127.0.0.1", server.port)
+        Session.hostAndJoin(server)
         game.setScreen<PlayScreen>()
-    }
-
-    private fun centered(text: String, y: Float, w: Float) {
-        layout.setText(game.font, text)
-        game.font.draw(game.batch, text, (w - layout.width) / 2f, y)
-    }
-
-    private fun labelIn(text: String, rect: Rectangle) {
-        layout.setText(game.font, text)
-        game.font.draw(
-            game.batch, text,
-            rect.x + (rect.width - layout.width) / 2f,
-            rect.y + (rect.height + layout.height) / 2f,
-        )
     }
 
     override fun resize(width: Int, height: Int) {
         viewport.update(width, height, true)
-    }
-
-    companion object {
-        private val BUTTON_FILL = Color(0.18f, 0.22f, 0.30f, 1f)
     }
 }

@@ -5,11 +5,11 @@ import com.github.quillraven.fleks.IteratingSystem
 import com.github.quillraven.fleks.World.Companion.family
 import com.github.quillraven.fleks.World.Companion.inject
 import com.yikers.config.GameConfig
-import com.yikers.ecs.buildPlatformHalf
 import com.yikers.ecs.component.Dead
 import com.yikers.ecs.component.Physics
 import com.yikers.ecs.component.PlatformC
 import com.yikers.ecs.component.Player
+import com.yikers.ecs.rebuildPlatformBodies
 import com.yikers.ecs.resource.RunState
 import com.badlogic.gdx.physics.box2d.World as PhysicsWorld
 
@@ -51,14 +51,7 @@ class PlatformBridgeSystem(
     // Collapse both halves to the hole center -> reads solid.
     private fun bridge(entity: Entity, p: PlatformC) {
         val center = p.holeX + p.holeWidth / 2f
-        pw.destroyBody(p.leftBody)
-        pw.destroyBody(p.rightBody)
-        val left = buildPlatformHalf(pw, 0f, center, p.y)
-        val right = buildPlatformHalf(pw, center, GameConfig.WIDTH, p.y)
-        left.userData = entity
-        right.userData = entity
-        p.leftBody = left
-        p.rightBody = right
+        rebuildPlatformBodies(pw, entity, p, holeX = center, holeWidth = 0f)
         p.bridged = true
     }
 

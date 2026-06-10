@@ -47,6 +47,15 @@ fun buildPlatformHalf(pw: PhysicsWorld, xStart: Float, xEnd: Float, y: Float): B
     }
 }
 
+// Swap a live slab's halves for a new gap [holeX, holeX+holeWidth] at p.y. Fixtures
+// can't resize -> destroy + rebuild. Safe only between physics steps.
+fun rebuildPlatformBodies(pw: PhysicsWorld, entity: Entity, p: PlatformC, holeX: Float, holeWidth: Float) {
+    pw.destroyBody(p.leftBody)
+    pw.destroyBody(p.rightBody)
+    p.leftBody = buildPlatformHalf(pw, 0f, holeX, p.y).also { it.userData = entity }
+    p.rightBody = buildPlatformHalf(pw, holeX + holeWidth, GameConfig.WIDTH, p.y).also { it.userData = entity }
+}
+
 fun buildArena(pw: PhysicsWorld): Arena {
     fun staticBox(cx: Float, cy: Float, w: Float, h: Float): Body = pw.body {
         type = BodyDef.BodyType.StaticBody
